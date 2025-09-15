@@ -1,424 +1,49 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Mini Clash Royale</title>
-<style>
-  body {
-    margin: 0;
-    background: #88c0d0;
-    font-family: Arial, sans-serif;
-    user-select: none;
-  }
-  #elixir-text {
-    margin: 10px;
-    font-weight: bold;
-    font-size: 18px;
-    color: #2e3440;
-  }
-  #elixir-container {
-    width: 300px;
-    height: 20px;
-    background: #4c566a;
-    border-radius: 10px;
-    margin: 0 10px 20px 10px;
-    overflow: hidden;
-  }
-  #elixir-bar {
-    height: 100%;
-    width: 0;
-    background: #81a1c1;
-    transition: width 0.1s linear;
-  }
-  #battlefield {
-    width: 800px;
-    height: 400px;
-    background: #d8dee9;
-    margin: 0 auto 20px auto;
-    position: relative;
-    border: 3px solid #2e3440;
-    border-radius: 12px;
-  }
-  .bridge {
-    position: absolute;
-    width: 140px;
-    height: 60px;
-    background: #b48ead;
-    top: 50%;
-    transform: translateY(-50%);
-    border-radius: 10px;
-    box-shadow: inset 0 0 10px #8f699d;
-  }
-  #bridge-left {
-    left: 150px;
-  }
-  #bridge-right {
-    right: 150px;
-  }
-  .tower {
-    position: absolute;
-    width: 80px;
-    height: 120px;
-    background: #bf616a;
-    border-radius: 15px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: white;
-    font-weight: bold;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    padding-bottom: 10px;
-    box-shadow: 0 0 8px #a3474f;
-    user-select: none;
-  }
-  #tower-left {
-    left: 10px;
-  }
-  #tower-right {
-    right: 10px;
-    background: #5e81ac;
-    box-shadow: 0 0 8px #3b557c;
-  }
-  .health-bar {
-    width: 70px;
-    height: 8px;
-    background: #3b4252;
-    border-radius: 4px;
-    margin-top: 6px;
-    overflow: hidden;
-  }
-  .health-bar-inner {
-    height: 100%;
-    background: #a3be8c;
-    width: 100%;
-    transition: width 0.3s ease;
-  }
-  #cards {
-    width: 800px;
-    margin: 0 auto;
-    display: flex;
-    justify-content: space-around;
-  }
-  .card {
-    width: 120px;
-    height: 70px;
-    background: #eceff4;
-    border-radius: 10px;
-    box-shadow: 0 0 5px #4c566a;
-    text-align: center;
-    line-height: 70px;
-    font-weight: bold;
-    color: #2e3440;
-    cursor: pointer;
-    user-select: none;
-    position: relative;
-    transition: background-color 0.3s ease;
-  }
-  .card.selected {
-    background-color: #81a1c1;
-    color: white;
-    box-shadow: 0 0 10px #5e81ac;
-  }
-  .troop {
-    position: absolute;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    user-select: none;
-  }
-  .archer {
-    background: #a3be8c;
-    box-shadow: 0 0 5px #86a37e;
-  }
-  .knight {
-    background: #d08770;
-    box-shadow: 0 0 5px #b36e58;
-  }
-  .giant {
-    background: #bf616a;
-    box-shadow: 0 0 8px #a3474f;
-    width: 40px;
-    height: 40px;
-  }
-  .skeleton {
-    background: #eceff4;
-    border: 2px solid #4c566a;
-    box-shadow: 0 0 5px #4c566a;
-  }
-  .mage {
-    background: #5e81ac;
-    box-shadow: 0 0 7px #3b557c;
-  }
-</style>
-</head>
-<body>
+// Inside troop loop, replace tower attack logic with:
 
-<div id="elixir-text">Elixir: 0 / 10</div>
-<div id="elixir-container">
-  <div id="elixir-bar"></div>
-</div>
+if (!troop.isFighting) {
+  // Check distance to enemy tower
+  let towerTarget = troop.isEnemy ? towerLeft : towerRight;
+  let towerHealth = troop.isEnemy ? towerLeftHealth : towerRightHealth;
 
-<div id="battlefield">
-  <div id="bridge-left" class="bridge"></div>
-  <div id="bridge-right" class="bridge"></div>
+  // Position of troop center
+  const troopPos = { x: troop.x + troop.el.offsetWidth / 2, y: troop.y + troop.el.offsetHeight / 2 };
+  // Position of tower center
+  const towerPos = { x: towerTarget.offsetLeft + towerTarget.offsetWidth / 2, y: towerTarget.offsetTop + towerTarget.offsetHeight / 2 };
 
-  <div id="tower-left" class="tower">
-    Tower
-    <div class="health-bar"><div class="health-bar-inner" id="tower-left-health"></div></div>
-  </div>
-  <div id="tower-right" class="tower">
-    Tower
-    <div class="health-bar"><div class="health-bar-inner" id="tower-right-health"></div></div>
-  </div>
-</div>
+  const distToTower = distance(troopPos, towerPos);
 
-<div id="cards">
-  <div class="card" data-type="archer" data-cost="3">
-    Archer (3)
-  </div>
-  <div class="card" data-type="knight" data-cost="4">
-    Knight (4)
-  </div>
-  <div class="card" data-type="giant" data-cost="6">
-    Giant (6)
-  </div>
-  <div class="card" data-type="skeleton" data-cost="2">
-    Skeleton (2)
-  </div>
-  <div class="card" data-type="mage" data-cost="5">
-    Mage (5)
-  </div>
-</div>
-
-<script>
-  const battlefield = document.getElementById('battlefield');
-  const cards = document.querySelectorAll('.card');
-  const elixirBar = document.getElementById('elixir-bar');
-  const elixirText = document.getElementById('elixir-text');
-  const towerLeftHealthBar = document.getElementById('tower-left-health');
-  const towerRightHealthBar = document.getElementById('tower-right-health');
-
-  const MAX_ELIXIR = 10;
-  const ELIXIR_REGEN_RATE = 0.03;
-  const TOWER_MAX_HEALTH = 100;
-
-  const troopData = {
-    archer: { speed: 1.5, damage: 10, health: 30, cost: 3, colorClass: 'archer', range: 100, attackSpeed: 1000 },
-    knight: { speed: 1, damage: 20, health: 50, cost: 4, colorClass: 'knight', range: 20, attackSpeed: 800 },
-    giant: { speed: 0.5, damage: 30, health: 80, cost: 6, colorClass: 'giant', range: 20, attackSpeed: 1500 },
-    skeleton: { speed: 2, damage: 5, health: 15, cost: 2, colorClass: 'skeleton', range: 15, attackSpeed: 400 },
-    mage: { speed: 1.2, damage: 15, health: 25, cost: 5, colorClass: 'mage', range: 80, attackSpeed: 1200 },
-  };
-
-  let selectedType = null;
-  let troops = [];
-  let playerElixir = 0;
-
-  let towerLeftHealth = TOWER_MAX_HEALTH;
-  let towerRightHealth = TOWER_MAX_HEALTH;
-
-  function updateElixirUI() {
-    const widthPercent = (playerElixir / MAX_ELIXIR) * 100;
-    elixirBar.style.width = widthPercent + '%';
-    elixirText.textContent = `Elixir: ${Math.floor(playerElixir)} / ${MAX_ELIXIR}`;
+  if (distToTower < troop.range) {
+    // Stop moving and fight tower
+    troop.isFighting = true;
+    troop.fightTarget = 'tower';
+    troop.lastAttack = troop.lastAttack || 0;
   }
+}
 
-  cards.forEach(card => {
-    card.addEventListener('click', () => {
-      if (selectedType === card.dataset.type) {
-        selectedType = null;
-        cards.forEach(c => c.classList.remove('selected'));
-        return;
+// If fighting tower, attack with cooldown
+if (troop.isFighting && troop.fightTarget === 'tower') {
+  if (now - troop.lastAttack > troop.attackCooldown) {
+    if (troop.isEnemy) {
+      towerLeftHealth -= troop.damage;
+      if (towerLeftHealth < 0) towerLeftHealth = 0;
+      towerLeftHealthBar.style.width = (towerLeftHealth / TOWER_MAX_HEALTH) * 100 + '%';
+      if (towerLeftHealth <= 0) {
+        alert("You lose! Your tower was destroyed.");
+        window.location.reload();
       }
-      const cost = troopData[card.dataset.type].cost;
-      if (playerElixir < cost) {
-        alert('Not enough elixir!');
-        return;
+    } else {
+      towerRightHealth -= troop.damage;
+      if (towerRightHealth < 0) towerRightHealth = 0;
+      towerRightHealthBar.style.width = (towerRightHealth / TOWER_MAX_HEALTH) * 100 + '%';
+      if (towerRightHealth <= 0) {
+        alert("You win! Enemy tower destroyed.");
+        window.location.reload();
       }
-      selectedType = card.dataset.type;
-      cards.forEach(c => c.classList.remove('selected'));
-      card.classList.add('selected');
-    });
-  });
-
-  battlefield.addEventListener('click', e => {
-    if (!selectedType) return;
-
-    const cost = troopData[selectedType].cost;
-    if (playerElixir < cost) {
-      alert('Not enough elixir!');
-      return;
     }
-
-    const rect = battlefield.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    // Ensure you can only deploy on left half
-    if (x > rect.width / 2) {
-      alert('You can only deploy on your side!');
-      return;
-    }
-
-    createTroop(selectedType, x, y, 1, false);
-
-    playerElixir -= cost;
-    updateElixirUI();
-
-    selectedType = null;
-    cards.forEach(c => c.classList.remove('selected'));
-  });
-
-  function createTroop(type, x, y, direction, isEnemy = false) {
-    const data = troopData[type];
-    const troop = document.createElement('div');
-    troop.classList.add('troop', data.colorClass);
-    troop.style.left = (x - 15) + 'px';
-    troop.style.top = (y - 15) + 'px';
-    troop.style.position = 'absolute';
-
-    battlefield.appendChild(troop);
-
-    troops.push({
-      el: troop,
-      x: x - 15,
-      y: y - 15,
-      speed: data.speed * direction,
-      health: data.health,
-      damage: data.damage,
-      type,
-      isEnemy,
-      attackCooldown: data.attackSpeed,
-      range: data.range,
-      lastAttack: 0,
-      direction,
-      isFighting: false,
-      fightTarget: null,
-    });
+    troop.lastAttack = now;
   }
-
-  // CPU spawns troops on right side going left
-  function enemySpawner() {
-    const types = Object.keys(troopData);
-    const randomType = types[Math.floor(Math.random() * types.length)];
-
-    const rect = battlefield.getBoundingClientRect();
-    const x = rect.width - 100 + Math.random() * 50; // spawn near right edge
-    const y = rect.height * 0.4 + (Math.random() * 50);
-
-    createTroop(randomType, x, y, -1, true); // direction -1 = left
-  }
-  setInterval(enemySpawner, 4500);
-
-  const towerLeft = document.getElementById('tower-left');
-  const towerRight = document.getElementById('tower-right');
-
-  function distance(a, b) {
-    return Math.hypot(a.x - b.x, a.y - b.y);
-  }
-
-  function gameLoop(timestamp) {
-    const now = timestamp || performance.now();
-
-    troops.forEach((troop, index) => {
-      if (troop.health <= 0) {
-        troop.el.remove();
-        troops.splice(index, 1);
-        return;
-      }
-
-      // Fighting logic
-      if (troop.isFighting && troop.fightTarget && troops.includes(troop.fightTarget)) {
-        if (now - troop.lastAttack > troop.attackCooldown) {
-          troop.fightTarget.health -= troop.damage;
-          troop.lastAttack = now;
-          // Check if fight target dead
-          if (troop.fightTarget.health <= 0) {
-            troop.isFighting = false;
-            troop.fightTarget = null;
-          }
-        }
-        return; // don't move if fighting
-      }
-
-      // Find enemy troop to fight if bumping (close)
-      const enemyTroops = troops.filter(t => t.isEnemy !== troop.isEnemy);
-      let bumped = false;
-      for (const enemy of enemyTroops) {
-        if (Math.abs(troop.x - enemy.x) < 30 && Math.abs(troop.y - enemy.y) < 30) {
-          // bump detected - start fighting
-          troop.isFighting = true;
-          troop.fightTarget = enemy;
-          bumped = true;
-          break;
-        }
-      }
-      if (bumped) return;
-
-      // Move troop if no fight
-      troop.x += troop.speed;
-      troop.el.style.left = troop.x + 'px';
-
-      // Check for tower attack
-      if (!troop.isFighting) {
-        // Check distance to enemy tower
-        let towerTarget = troop.isEnemy ? towerLeft : towerRight;
-        let towerHealth = troop.isEnemy ? towerLeftHealth : towerRightHealth;
-
-        const towerRect = towerTarget.getBoundingClientRect();
-        const bfRect = battlefield.getBoundingClientRect();
-
-        // Calculate troop position relative to battlefield
-        const troopPos = { x: troop.x + 15, y: troop.y + 15 };
-
-        // Tower position relative to battlefield
-        const towerPos = {
-          x: towerTarget.offsetLeft + towerTarget.offsetWidth / 2,
-          y: towerTarget.offsetTop + towerTarget.offsetHeight / 2,
-        };
-
-        const distToTower = distance(troopPos, towerPos);
-
-        if (distToTower < troop.range) {
-          if (now - troop.lastAttack > troop.attackCooldown) {
-            if (troop.isEnemy) {
-              towerLeftHealth -= troop.damage;
-              if (towerLeftHealth < 0) towerLeftHealth = 0;
-              towerLeftHealthBar.style.width = (towerLeftHealth / TOWER_MAX_HEALTH) * 100 + '%';
-              if (towerLeftHealth <= 0) {
-                alert("You lose! Your tower was destroyed.");
-                window.location.reload();
-              }
-            } else {
-              towerRightHealth -= troop.damage;
-              if (towerRightHealth < 0) towerRightHealth = 0;
-              towerRightHealthBar.style.width = (towerRightHealth / TOWER_MAX_HEALTH) * 100 + '%';
-              if (towerRightHealth <= 0) {
-                alert("You win! Enemy tower destroyed.");
-                window.location.reload();
-              }
-            }
-            troop.lastAttack = now;
-          }
-        }
-      }
-    });
-
-    // Regenerate elixir
-    if (playerElixir < MAX_ELIXIR) {
-      playerElixir += ELIXIR_REGEN_RATE;
-      if (playerElixir > MAX_ELIXIR) playerElixir = MAX_ELIXIR;
-      updateElixirUI();
-    }
-
-    requestAnimationFrame(gameLoop);
-  }
-
-  updateElixirUI();
-  requestAnimationFrame(gameLoop);
-</script>
-
-</body>
-</html>
+} else if (!troop.isFighting) {
+  // Normal movement code here
+  troop.x += troop.speed;
+  troop.el.style.left = troop.x + 'px';
+}
