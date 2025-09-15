@@ -5,8 +5,152 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Mini Clash Royale</title>
 <style>
-  /* same CSS as before - omitted for brevity */
-  /* ... keep all existing styles ... */
+  body {
+    margin: 0;
+    background: #88c0d0;
+    font-family: Arial, sans-serif;
+    user-select: none;
+  }
+  #elixir-text {
+    margin: 10px;
+    font-weight: bold;
+    font-size: 18px;
+    color: #2e3440;
+  }
+  #elixir-container {
+    width: 300px;
+    height: 20px;
+    background: #4c566a;
+    border-radius: 10px;
+    margin: 0 10px 20px 10px;
+    overflow: hidden;
+  }
+  #elixir-bar {
+    height: 100%;
+    width: 0;
+    background: #81a1c1;
+    transition: width 0.1s linear;
+  }
+  #battlefield {
+    width: 800px;
+    height: 400px;
+    background: #d8dee9;
+    margin: 0 auto 20px auto;
+    position: relative;
+    border: 3px solid #2e3440;
+    border-radius: 12px;
+  }
+  .bridge {
+    position: absolute;
+    width: 140px;
+    height: 60px;
+    background: #b48ead;
+    top: 50%;
+    transform: translateY(-50%);
+    border-radius: 10px;
+    box-shadow: inset 0 0 10px #8f699d;
+  }
+  #bridge-left {
+    left: 150px;
+  }
+  #bridge-right {
+    right: 150px;
+  }
+  .tower {
+    position: absolute;
+    width: 80px;
+    height: 120px;
+    background: #bf616a;
+    border-radius: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: white;
+    font-weight: bold;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 10px;
+    box-shadow: 0 0 8px #a3474f;
+    user-select: none;
+  }
+  #tower-left {
+    left: 10px;
+  }
+  #tower-right {
+    right: 10px;
+    background: #5e81ac;
+    box-shadow: 0 0 8px #3b557c;
+  }
+  .health-bar {
+    width: 70px;
+    height: 8px;
+    background: #3b4252;
+    border-radius: 4px;
+    margin-top: 6px;
+    overflow: hidden;
+  }
+  .health-bar-inner {
+    height: 100%;
+    background: #a3be8c;
+    width: 100%;
+    transition: width 0.3s ease;
+  }
+  #cards {
+    width: 800px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-around;
+  }
+  .card {
+    width: 120px;
+    height: 70px;
+    background: #eceff4;
+    border-radius: 10px;
+    box-shadow: 0 0 5px #4c566a;
+    text-align: center;
+    line-height: 70px;
+    font-weight: bold;
+    color: #2e3440;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    transition: background-color 0.3s ease;
+  }
+  .card.selected {
+    background-color: #81a1c1;
+    color: white;
+    box-shadow: 0 0 10px #5e81ac;
+  }
+  .troop {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    user-select: none;
+  }
+  .archer {
+    background: #a3be8c;
+    box-shadow: 0 0 5px #86a37e;
+  }
+  .knight {
+    background: #d08770;
+    box-shadow: 0 0 5px #b36e58;
+  }
+  .giant {
+    background: #bf616a;
+    box-shadow: 0 0 8px #a3474f;
+    width: 40px;
+    height: 40px;
+  }
+  .skeleton {
+    background: #eceff4;
+    border: 2px solid #4c566a;
+    box-shadow: 0 0 5px #4c566a;
+  }
+  .mage {
+    background: #5e81ac;
+    box-shadow: 0 0 7px #3b557c;
+  }
 </style>
 </head>
 <body>
@@ -33,23 +177,18 @@
 <div id="cards">
   <div class="card" data-type="archer" data-cost="3">
     Archer (3)
-    <div class="troop archer" style="position:relative; margin-top: 25px;"></div>
   </div>
   <div class="card" data-type="knight" data-cost="4">
     Knight (4)
-    <div class="troop knight" style="position:relative; margin-top: 25px;"></div>
   </div>
   <div class="card" data-type="giant" data-cost="6">
     Giant (6)
-    <div class="troop giant" style="position:relative; margin-top: 25px;"></div>
   </div>
   <div class="card" data-type="skeleton" data-cost="2">
     Skeleton (2)
-    <div class="troop skeleton" style="position:relative; margin-top: 25px;"></div>
   </div>
   <div class="card" data-type="mage" data-cost="5">
     Mage (5)
-    <div class="troop mage" style="position:relative; margin-top: 25px;"></div>
   </div>
 </div>
 
@@ -159,32 +298,18 @@
     });
   }
 
-  // Enemy CPU spawns on right side (same as before)
+  // CPU spawns troops on right side going left
   function enemySpawner() {
     const types = Object.keys(troopData);
     const randomType = types[Math.floor(Math.random() * types.length)];
 
     const rect = battlefield.getBoundingClientRect();
-    const x = rect.width - 100 + Math.random() * 50;
+    const x = rect.width - 100 + Math.random() * 50; // spawn near right edge
     const y = rect.height * 0.4 + (Math.random() * 50);
 
-    createTroop(randomType, x, y, -1, true);
+    createTroop(randomType, x, y, -1, true); // direction -1 = left
   }
   setInterval(enemySpawner, 4500);
-
-  // NEW: CPU spawns troops on LEFT side every 3-4 seconds (your side)
-  function cpuLeftSpawner() {
-    const types = Object.keys(troopData);
-    const randomType = types[Math.floor(Math.random() * types.length)];
-
-    const rect = battlefield.getBoundingClientRect();
-    const x = 50 + Math.random() * 50; // near left edge
-    const y = rect.height * 0.5 + (Math.random() * 50);
-
-    // CPU troops on left moving RIGHT (direction 1)
-    createTroop(randomType, x, y, 1, true);
-  }
-  setInterval(cpuLeftSpawner, 3500);
 
   const towerLeft = document.getElementById('tower-left');
   const towerRight = document.getElementById('tower-right');
@@ -203,7 +328,7 @@
         return;
       }
 
-      // If troop is currently fighting, don't move; just attack
+      // Fighting logic
       if (troop.isFighting && troop.fightTarget && troops.includes(troop.fightTarget)) {
         if (now - troop.lastAttack > troop.attackCooldown) {
           troop.fightTarget.health -= troop.damage;
@@ -215,11 +340,10 @@
             troop.fightTarget = null;
           }
         }
-        return; // skip movement when fighting
+        return; // no movement while fighting
       }
 
-      // Check for opposing troop collision (bumping)
-      // We'll say they "bump" if distance on x axis < 30 and y difference < 30, and they face opposite directions
+      // Check for bumping with opposing troops
       let bumpTarget = null;
       for (const other of troops) {
         if (other === troop) continue;
@@ -234,21 +358,17 @@
       }
 
       if (bumpTarget) {
-        // Start fighting
         troop.isFighting = true;
         troop.fightTarget = bumpTarget;
         bumpTarget.isFighting = true;
         bumpTarget.fightTarget = troop;
-
-        // Troops attack each other only when fighting, so no movement
-        // We'll handle damage in the next loop iteration (due to cooldown)
         return;
       } else {
         troop.isFighting = false;
         troop.fightTarget = null;
       }
 
-      // Find target troop in range to attack from afar (for ranged troops)
+      // Find ranged target in range
       let rangedTarget = null;
       for (const other of troops) {
         if (other.isEnemy !== troop.isEnemy) {
@@ -260,10 +380,9 @@
         }
       }
 
-      // If no troop target, try to target enemy tower if close enough
+      // Attack towers if no troop targets
       let towerTarget = null;
       if (!rangedTarget && !troop.isFighting) {
-        const rect = battlefield.getBoundingClientRect();
         if (troop.isEnemy) {
           const towerPos = {
             x: towerLeft.offsetLeft + towerLeft.offsetWidth / 2,
@@ -312,26 +431,24 @@
           troop.lastAttack = now;
         }
       } else {
-        // Move if no fight or attack
+        // Move troop if no fighting/attacking
         troop.x += troop.speed;
         troop.el.style.left = troop.x + 'px';
       }
-
-      // Remove troop if out of bounds
-      const rect = battlefield.getBoundingClientRect();
-      if (troop.x < -50 || troop.x > rect.width + 50) {
-        troop.el.remove();
-        troops.splice(index, 1);
-      }
     });
 
-    playerElixir = Math.min(playerElixir + ELIXIR_REGEN_RATE, MAX_ELIXIR);
-    updateElixirUI();
+    // Elixir regeneration
+    if (playerElixir < MAX_ELIXIR) {
+      playerElixir += ELIXIR_REGEN_RATE;
+      if (playerElixir > MAX_ELIXIR) playerElixir = MAX_ELIXIR;
+      updateElixirUI();
+    }
 
     requestAnimationFrame(gameLoop);
   }
 
-  gameLoop();
+  updateElixirUI();
+  requestAnimationFrame(gameLoop);
 </script>
 
 </body>
