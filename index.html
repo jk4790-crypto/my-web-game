@@ -2,383 +2,201 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Mini Clash Royale Clone</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mini Clash Royale</title>
 <style>
   body {
-    font-family: Arial, sans-serif;
     margin: 0; padding: 0;
     display: flex; flex-direction: column;
-    align-items: center;
-    background: #e0f7fa;
+    height: 100vh;
+    background: #d0f0ff;
+    font-family: Arial, sans-serif;
   }
-  h1 {
-    margin: 20px 0 10px 0;
-  }
-  #game {
+  #battlefield {
+    flex: 1;
     position: relative;
-    width: 600px;
-    height: 400px;
-    background: linear-gradient(to bottom, #4caf50 50%, #f44336 50%);
-    border: 3px solid #333;
-    display: flex;
-    justify-content: space-between;
-    padding: 20px;
-    box-sizing: border-box;
+    background: #77aa55;
+    border-top: 3px solid #654321;
+    border-bottom: 3px solid #654321;
+    overflow: hidden;
   }
-  .lane {
-    position: relative;
-    width: 45%;
-    height: 100%;
-    border-left: 2px solid #444;
-    border-right: 2px solid #444;
-  }
-  .lane.left {
-    border-left: none;
-  }
-  .tower {
-    width: 40px;
-    height: 40px;
-    background: gray;
-    border-radius: 6px;
+  /* Draw bridges as brown rectangles on left/right */
+  .bridge {
     position: absolute;
-    left: calc(50% - 20px);
-    box-shadow: 0 0 5px #333;
-  }
-  .tower.top {
-    top: 30px;
-  }
-  .tower.middle {
-    top: 180px;
-  }
-  .tower.bottom {
-    bottom: 30px;
-  }
-  .tower.player {
-    background: #2196f3;
-  }
-  .tower.enemy {
-    background: #f44336;
-  }
-  .unit {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    position: absolute;
-    top: 0; left: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: bold;
-    cursor: default;
-    user-select: none;
-  }
-  .unit.player {
-    background: #2196f3;
-  }
-  .unit.enemy {
-    background: #f44336;
-  }
-  #cards {
-    margin-top: 15px;
-  }
-  button.card {
-    margin: 0 8px;
-    padding: 10px 15px;
-    font-weight: bold;
-    cursor: pointer;
-  }
-  #log {
-    margin-top: 20px;
-    width: 600px;
-    height: 100px;
-    background: #222;
-    color: #eee;
-    font-family: monospace;
-    font-size: 14px;
-    overflow-y: auto;
-    padding: 8px;
-    box-sizing: border-box;
+    top: 40%;
+    width: 80px;
+    height: 20px;
+    background: sienna;
     border-radius: 4px;
   }
+  #bridge-left {
+    left: 0;
+  }
+  #bridge-right {
+    right: 0;
+  }
+
+  #cards {
+    height: 120px;
+    background: #eee;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    border-top: 2px solid #ccc;
+  }
+  .card {
+    width: 80px;
+    height: 100px;
+    background: white;
+    border: 2px solid #888;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px;
+    box-shadow: 2px 2px 6px rgba(0,0,0,0.1);
+    user-select: none;
+    transition: border-color 0.3s;
+  }
+  .card.selected {
+    border-color: #0077ff;
+    box-shadow: 0 0 12px #0077ff;
+  }
+  .troop {
+    width: 30px;
+    height: 30px;
+    margin-top: 8px;
+    border-radius: 50%;
+  }
+  .troop.archer {
+    background: #ffcc33;
+  }
+  .troop.knight {
+    background: #555555;
+  }
+  .troop.giant {
+    background: #aa4444;
+  }
+  .troop.skeleton {
+    background: #dddddd;
+  }
+  .troop.mage {
+    background: #8844cc;
+  }
+
 </style>
 </head>
 <body>
 
-<h1>Mini Clash Royale Clone</h1>
-
-<div id="game">
-  <div class="lane left" id="playerLane">
-    <div class="tower player top" data-lane="top" data-owner="player" data-health="100"></div>
-    <div class="tower player middle" data-lane="middle" data-owner="player" data-health="100"></div>
-    <div class="tower player bottom" data-lane="bottom" data-owner="player" data-health="100"></div>
-  </div>
-  <div class="lane right" id="enemyLane">
-    <div class="tower enemy top" data-lane="top" data-owner="enemy" data-health="100"></div>
-    <div class="tower enemy middle" data-lane="middle" data-owner="enemy" data-health="100"></div>
-    <div class="tower enemy bottom" data-lane="bottom" data-owner="enemy" data-health="100"></div>
-  </div>
+<div id="battlefield">
+  <div id="bridge-left" class="bridge"></div>
+  <div id="bridge-right" class="bridge"></div>
 </div>
 
 <div id="cards">
-  <button class="card" data-card="knight">Knight</button>
-  <button class="card" data-card="archer">Archer</button>
-  <button class="card" data-card="giant">Giant</button>
-  <button class="card" data-card="mage">Mage</button>
+  <div class="card" data-type="archer">
+    Archer
+    <div class="troop archer"></div>
+  </div>
+  <div class="card" data-type="knight">
+    Knight
+    <div class="troop knight"></div>
+  </div>
+  <div class="card" data-type="giant">
+    Giant
+    <div class="troop giant"></div>
+  </div>
+  <div class="card" data-type="skeleton">
+    Skeleton
+    <div class="troop skeleton"></div>
+  </div>
+  <div class="card" data-type="mage">
+    Mage
+    <div class="troop mage"></div>
+  </div>
 </div>
 
-<div id="log"></div>
-
 <script>
-(() => {
-  const gameArea = document.getElementById('game');
-  const playerLane = document.getElementById('playerLane');
-  const enemyLane = document.getElementById('enemyLane');
-  const log = document.getElementById('log');
-  const cards = document.querySelectorAll('button.card');
+  const battlefield = document.getElementById('battlefield');
+  const cards = document.querySelectorAll('.card');
 
-  // Game constants
-  const lanes = ['top', 'middle', 'bottom'];
-  const towerMaxHealth = 100;
-  const unitSpeed = 0.5; // px per frame (~60fps)
-  const frameTime = 16; // ms per frame
-  const unitSize = 30;
+  let selectedType = null;
+  let troops = [];
 
-  // Units stats
-  const cardStats = {
-    knight: {hp: 30, dmg: 8, speed: 0.4, lanePref: 'middle', symbol: 'K'},
-    archer: {hp: 20, dmg: 5, speed: 0.7, lanePref: 'top', symbol: 'A'},
-    giant: {hp: 50, dmg: 15, speed: 0.3, lanePref: 'bottom', symbol: 'G'},
-    mage: {hp: 25, dmg: 10, speed: 0.6, lanePref: 'middle', symbol: 'M'},
+  // Troop properties (speed in px per frame)
+  const troopData = {
+    archer: { speed: 1.5, colorClass: 'archer' },
+    knight: { speed: 1, colorClass: 'knight' },
+    giant: { speed: 0.5, colorClass: 'giant' },
+    skeleton: { speed: 2, colorClass: 'skeleton' },
+    mage: { speed: 1.2, colorClass: 'mage' },
   };
 
-  // Game state
-  const units = [];
-  const towers = {};
-
-  // Initialize towers health & store ref
-  [...document.querySelectorAll('.tower')].forEach(t => {
-    const owner = t.dataset.owner;
-    const lane = t.dataset.lane;
-    towers[`${owner}-${lane}`] = {
-      el: t,
-      health: towerMaxHealth,
-    };
+  // Select a troop card
+  cards.forEach(card => {
+    card.addEventListener('click', () => {
+      cards.forEach(c => c.classList.remove('selected'));
+      if (selectedType === card.dataset.type) {
+        selectedType = null; // deselect if clicked again
+      } else {
+        selectedType = card.dataset.type;
+        card.classList.add('selected');
+      }
+    });
   });
 
-  function logMessage(msg) {
-    const time = new Date().toLocaleTimeString();
-    log.innerText += `[${time}] ${msg}\n`;
-    log.scrollTop = log.scrollHeight;
-  }
+  // Deploy troop on battlefield click
+  battlefield.addEventListener('click', e => {
+    if (!selectedType) return;
 
-  // Create unit
-  function spawnUnit(owner, cardName) {
-    const lane = cardStats[cardName].lanePref;
-    const laneEl = owner === 'player' ? playerLane : enemyLane;
-    const unit = document.createElement('div');
-    unit.classList.add('unit', owner);
-    unit.dataset.owner = owner;
-    unit.dataset.lane = lane;
-    unit.dataset.hp = cardStats[cardName].hp;
-    unit.dataset.dmg = cardStats[cardName].dmg;
-    unit.dataset.speed = cardStats[cardName].speed;
-    unit.dataset.card = cardName;
-    unit.textContent = cardStats[cardName].symbol;
+    const rect = battlefield.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
-    // Position horizontally: player units start left side, enemy units start right side
-    // Vertically positioned by lane
-    const laneHeight = laneEl.clientHeight;
-    let y;
-    if (lane === 'top') y = 30;
-    else if (lane === 'middle') y = laneHeight / 2 - unitSize/2;
-    else y = laneHeight - 60;
+    // Create troop element
+    const troop = document.createElement('div');
+    troop.classList.add('troop', troopData[selectedType].colorClass);
+    troop.style.position = 'absolute';
+    troop.style.left = `${x - 15}px`; // center circle
+    troop.style.top = `${y - 15}px`;
 
-    unit.style.top = y + 'px';
-    unit.style.width = unitSize + 'px';
-    unit.style.height = unitSize + 'px';
+    battlefield.appendChild(troop);
 
-    if (owner === 'player') {
-      unit.style.left = '0px';
-      unit.posX = 0;
-    } else {
-      unit.style.left = (laneEl.clientWidth - unitSize) + 'px';
-      unit.posX = laneEl.clientWidth - unitSize;
-    }
+    // Determine direction: if placed on left half, move right, else move left
+    const direction = x < rect.width / 2 ? 1 : -1;
 
-    laneEl.appendChild(unit);
-    units.push(unit);
-    logMessage(`${owner} spawned ${cardName} on ${lane} lane.`);
-  }
-
-  // Move units
-  function moveUnits() {
-    units.forEach(unit => {
-      const owner = unit.dataset.owner;
-      const lane = unit.dataset.lane;
-      let speed = parseFloat(unit.dataset.speed);
-      if (owner === 'player') {
-        // Move right
-        unit.posX += speed;
-        if (unit.posX + unitSize >= playerLane.clientWidth) {
-          unit.posX = playerLane.clientWidth - unitSize;
-        }
-      } else {
-        // Move left
-        unit.posX -= speed;
-        if (unit.posX <= 0) {
-          unit.posX = 0;
-        }
-      }
-      unit.style.left = unit.posX + 'px';
+    troops.push({
+      el: troop,
+      x: x - 15,
+      y: y - 15,
+      speed: troopData[selectedType].speed * direction,
     });
-  }
 
-  // Check collisions between units & towers
-  function checkCollisions() {
-    units.forEach((unit, i) => {
-      const owner = unit.dataset.owner;
-      const lane = unit.dataset.lane;
-      const oppositeOwner = owner === 'player' ? 'enemy' : 'player';
-      const unitLeft = unit.posX;
-      const unitRight = unit.posX + unitSize;
+    // Optional: deselect card after deploy
+    cards.forEach(c => c.classList.remove('selected'));
+    selectedType = null;
+  });
 
-      // Check if unit reached enemy tower in same lane
-      const tower = towers[`${oppositeOwner}-${lane}`];
-      if (!tower) return;
-      // tower position in lane
-      // player towers are on right side of playerLane (so for enemy towers, left side is 0)
-      // We use tower area to check if unit close enough to attack
-
-      if (owner === 'player' && unitRight >= playerLane.clientWidth - 40) {
-        // Attack enemy tower
-        attackTower(unit, tower);
-      } else if (owner === 'enemy' && unitLeft <= 40) {
-        attackTower(unit, tower);
-      }
-    });
-  }
-
-  // Attack tower
-  function attackTower(unit, tower) {
-    let hp = parseInt(unit.dataset.hp);
-    if (hp <= 0) return;
-
-    // Damage tower
-    tower.health -= parseInt(unit.dataset.dmg);
-    if (tower.health < 0) tower.health = 0;
-    tower.el.style.opacity = tower.health / towerMaxHealth * 0.5 + 0.5;
-    tower.el.title = `Tower HP: ${tower.health}`;
-
-    if (tower.health <= 0) {
-      logMessage(`${tower.el.dataset.owner} ${tower.el.dataset.lane} tower destroyed!`);
-      alert(`${tower.el.dataset.owner.toUpperCase()} ${tower.el.dataset.lane.toUpperCase()} TOWER DESTROYED!`);
-      // End game
-      resetGame();
-    }
-  }
-
-  // Simple AI: opponent plays random card every 3-6 seconds
-  function opponentPlayCard() {
-    const cardNames = Object.keys(cardStats);
-    const randCard = cardNames[Math.floor(Math.random() * cardNames.length)];
-    spawnUnit('enemy', randCard);
-    const delay = 3000 + Math.random() * 3000;
-    setTimeout(opponentPlayCard, delay);
-  }
-
-  // Remove dead units
-  function cleanUnits() {
-    for (let i = units.length - 1; i >= 0; i--) {
-      const unit = units[i];
-      if (parseInt(unit.dataset.hp) <= 0) {
-        unit.remove();
-        units.splice(i, 1);
-      }
-    }
-  }
-
-  // Simple combat: if two units of opposite owners collide, they fight
-  function unitsCombat() {
-    for (let i = 0; i < units.length; i++) {
-      for (let j = i + 1; j < units.length; j++) {
-        const u1 = units[i];
-        const u2 = units[j];
-        if (u1.dataset.lane !== u2.dataset.lane) continue;
-        if (u1.dataset.owner === u2.dataset.owner) continue;
-
-        const pos1 = u1.posX;
-        const pos2 = u2.posX;
-
-        // Check overlap (simple collision box)
-        if (Math.abs(pos1 - pos2) < unitSize) {
-          // Combat! Both units deal damage to each other
-          let hp1 = parseInt(u1.dataset.hp);
-          let hp2 = parseInt(u2.dataset.hp);
-          const dmg1 = parseInt(u1.dataset.dmg);
-          const dmg2 = parseInt(u2.dataset.dmg);
-
-          hp1 -= dmg2;
-          hp2 -= dmg1;
-
-          u1.dataset.hp = hp1;
-          u2.dataset.hp = hp2;
-
-          if (hp1 <= 0) logMessage(`${u1.dataset.owner} ${u1.dataset.card} died.`);
-          if (hp2 <= 0) logMessage(`${u2.dataset.owner} ${u2.dataset.card} died.`);
-        }
-      }
-    }
-  }
-
-  // Update units color opacity based on hp
-  function updateUnitsVisual() {
-    units.forEach(u => {
-      const hp = parseInt(u.dataset.hp);
-      const maxHp = cardStats[u.dataset.card].hp;
-      const opacity = hp / maxHp;
-      u.style.opacity = opacity;
-    });
-  }
-
-  // Game loop
+  // Game loop to move troops
   function gameLoop() {
-    moveUnits();
-    unitsCombat();
-    checkCollisions();
-    cleanUnits();
-    updateUnitsVisual();
+    const rect = battlefield.getBoundingClientRect();
+
+    troops.forEach((troop, index) => {
+      troop.x += troop.speed;
+      troop.el.style.left = troop.x + 'px';
+
+      // Remove troop if out of battlefield
+      if (troop.x < -30 || troop.x > rect.width) {
+        troop.el.remove();
+        troops.splice(index, 1);
+      }
+    });
+
     requestAnimationFrame(gameLoop);
   }
-
-  // Reset game
-  function resetGame() {
-    // Remove all units
-    units.forEach(u => u.remove());
-    units.length = 0;
-    // Reset tower health
-    for (const key in towers) {
-      towers[key].health = towerMaxHealth;
-      towers[key].el.style.opacity = 1;
-      towers[key].el.title = `Tower HP: ${towerMaxHealth}`;
-    }
-    logMessage('Game reset.');
-  }
-
-  // Player card click handler
-  cards.forEach(button => {
-    button.addEventListener('click', () => {
-      const card = button.dataset.card;
-      spawnUnit('player', card);
-    });
-  });
-
-  // Start the game
-  resetGame();
-  opponentPlayCard();
   gameLoop();
-
-})();
 </script>
 
 </body>
