@@ -1,273 +1,154 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Mini Clash Royale Polished</title>
-<style>
-  body {
-    margin: 0;
-    background: #88c0d0;
-    font-family: Arial, sans-serif;
-    user-select: none;
-  }
-  #elixir-text {
-    margin: 10px;
-    font-weight: bold;
-    font-size: 18px;
-    color: #2e3440;
-  }
-  #elixir-container {
-    width: 300px;
-    height: 20px;
-    background: #4c566a;
-    border-radius: 10px;
-    margin: 0 10px 20px 10px;
-    overflow: hidden;
-  }
-  #elixir-bar {
-    height: 100%;
-    width: 0;
-    background: #81a1c1;
-    transition: width 0.1s linear;
-  }
-  #battlefield {
-    width: 800px;
-    height: 400px;
-    background: #d8dee9;
-    margin: 0 auto 20px auto;
-    position: relative;
-    border: 3px solid #2e3440;
-    border-radius: 12px;
-  }
-  .bridge {
-    position: absolute;
-    width: 140px;
-    height: 60px;
-    background: #b48ead;
-    top: 50%;
-    transform: translateY(-50%);
-    border-radius: 10px;
-    box-shadow: inset 0 0 10px #8f699d;
-    user-select: none;
-  }
-  #bridge-left {
-    left: 150px;
-  }
-  #bridge-right {
-    right: 150px;
-  }
-  .tower {
-    position: absolute;
-    width: 80px;
-    height: 120px;
-    background: #bf616a;
-    border-radius: 15px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: white;
-    font-weight: bold;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    padding-bottom: 10px;
-    box-shadow: 0 0 8px #a3474f;
-    user-select: none;
-  }
-  #tower-left {
-    left: 10px;
-  }
-  #tower-right {
-    right: 10px;
-    background: #5e81ac;
-    box-shadow: 0 0 8px #3b557c;
-  }
-  .health-bar {
-    width: 70px;
-    height: 8px;
-    background: #3b4252;
-    border-radius: 4px;
-    margin-top: 6px;
-    overflow: hidden;
-  }
-  .health-bar-inner {
-    height: 100%;
-    background: #a3be8c;
-    width: 100%;
-    transition: width 0.3s ease;
-  }
-  #cards {
-    width: 800px;
-    margin: 0 auto;
-    display: flex;
-    justify-content: space-around;
-  }
-  .card {
-    width: 120px;
-    height: 70px;
-    background: #eceff4;
-    border-radius: 10px;
-    box-shadow: 0 0 5px #4c566a;
-    text-align: center;
-    line-height: 70px;
-    font-weight: bold;
-    color: #2e3440;
-    cursor: pointer;
-    user-select: none;
-    position: relative;
-    transition: background-color 0.3s ease;
-  }
-  .card.selected {
-    background-color: #81a1c1;
-    color: white;
-    box-shadow: 0 0 10px #5e81ac;
-  }
-  .troop {
-    position: absolute;
-    border-radius: 50%;
-    user-select: none;
-    box-shadow: 0 0 8px rgba(0,0,0,0.3);
-    transition: transform 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: bold;
-    font-size: 14px;
-    text-shadow: 1px 1px 2px black;
-    animation: pulse 2s infinite;
-  }
-  .archer {
-    width: 32px;
-    height: 32px;
-    background: linear-gradient(135deg, #a3be8c, #81a1c1);
-    border-radius: 50% 50% 50% 10%;
-  }
-  .knight {
-    width: 34px;
-    height: 34px;
-    background: linear-gradient(135deg, #d08770, #b35c2f);
-    border-radius: 10% 50% 50% 50%;
-  }
-  .giant {
-    width: 50px;
-    height: 50px;
-    background: linear-gradient(135deg, #bf616a, #7f2f39);
-    border-radius: 50%;
-    box-shadow: 0 0 12px #bf616a;
-  }
-  .skeleton {
-    width: 28px;
-    height: 28px;
-    background: #eceff4;
-    border: 2px solid #4c566a;
-    box-shadow: 0 0 6px #4c566a;
-    filter: grayscale(70%);
-  }
-  .mage {
-    width: 30px;
-    height: 30px;
-    background: linear-gradient(135deg, #5e81ac, #3b557c);
-    border-radius: 40% 60% 50% 50%;
-    box-shadow: 0 0 10px #5e81ac;
-  }
-  @keyframes pulse {
-    0%, 100% {
-      transform: scale(1);
+  <meta charset="UTF-8">
+  <title>Mini Clash Royale Clone</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      background: #444;
+      color: white;
     }
-    50% {
-      transform: scale(1.05);
+    #game {
+      width: 800px;
+      margin: 20px auto;
+      border: 2px solid #333;
+      background: #2a2a2a;
+      position: relative;
+      height: 500px;
+      overflow: hidden;
     }
-  }
-</style>
+
+    .unit {
+      width: 40px;
+      height: 40px;
+      background: gold;
+      position: absolute;
+      bottom: 0;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 40px;
+      font-weight: bold;
+      animation: walk 10s linear forwards;
+    }
+
+    .cpu-unit {
+      background: crimson;
+      top: 0;
+      animation: walk-down 10s linear forwards;
+    }
+
+    @keyframes walk {
+      from { left: 0; bottom: 0; }
+      to { left: 100%; bottom: 100%; }
+    }
+
+    @keyframes walk-down {
+      from { left: 100%; top: 0; }
+      to { left: 0%; top: 100%; }
+    }
+
+    #hand {
+      display: flex;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    .card {
+      background: #666;
+      color: white;
+      border: 1px solid #aaa;
+      border-radius: 6px;
+      padding: 10px;
+      margin: 0 5px;
+      cursor: pointer;
+      width: 80px;
+      text-align: center;
+    }
+
+    .card:hover {
+      background: #888;
+    }
+  </style>
 </head>
 <body>
 
-<div id="elixir-text">Elixir: 0 / 10</div>
-<div id="elixir-container">
-  <div id="elixir-bar"></div>
-</div>
+<div id="game"></div>
 
-<div id="battlefield">
-  <div id="bridge-left" class="bridge"></div>
-  <div id="bridge-right" class="bridge"></div>
-
-  <div id="tower-left" class="tower">
-    Tower
-    <div class="health-bar"><div class="health-bar-inner" id="tower-left-health"></div></div>
-  </div>
-  <div id="tower-right" class="tower">
-    Tower
-    <div class="health-bar"><div class="health-bar-inner" id="tower-right-health"></div></div>
-  </div>
-</div>
-
-<div id="cards">
-  <div class="card" data-type="archer" data-cost="3">
-    Archer (3)
-  </div>
-  <div class="card" data-type="knight" data-cost="4">
-    Knight (4)
-  </div>
-  <div class="card" data-type="giant" data-cost="6">
-    Giant (6)
-  </div>
-  <div class="card" data-type="skeleton" data-cost="2">
-    Skeleton (2)
-  </div>
-  <div class="card" data-type="mage" data-cost="5">
-    Mage (5)
-  </div>
-</div>
+<div id="hand"></div>
 
 <script>
-  const battlefield = document.getElementById('battlefield');
-  const cards = document.querySelectorAll('.card');
-  const elixirBar = document.getElementById('elixir-bar');
-  const elixirText = document.getElementById('elixir-text');
-  const towerLeftHealthBar = document.getElementById('tower-left-health');
-  const towerRightHealthBar = document.getElementById('tower-right-health');
+  const playerDeck = ["Knight", "Archer", "Giant", "Wizard", "Bomber", "Mini P.E.K.K.A"];
+  const cpuDeck = ["Goblin", "Spear Goblin", "Valkyrie", "Hog Rider", "Skeletons", "Witch"];
 
-  const MAX_ELIXIR = 10;
-  const ELIXIR_REGEN_RATE = 0.03;
-  const TOWER_MAX_HEALTH = 100;
+  let playerHand = [];
+  let cpuHand = [];
 
-  const troopData = {
-    archer: { speed: 1.5, damage: 10, health: 30, cost: 3, colorClass: 'archer', range: 100, attackSpeed: 1000 },
-    knight: { speed: 1, damage: 20, health: 50, cost: 4, colorClass: 'knight', range: 20, attackSpeed: 800 },
-    giant: { speed: 0.5, damage: 30, health: 80, cost: 6, colorClass: 'giant', range: 20, attackSpeed: 1500 },
-    skeleton: { speed: 2, damage: 5, health: 15, cost: 2, colorClass: 'skeleton', range: 15, attackSpeed: 400 },
-    mage: { speed: 1.2, damage: 15, health: 25, cost: 5, colorClass: 'mage', range: 80, attackSpeed: 1200 },
-  };
+  const game = document.getElementById("game");
+  const handDiv = document.getElementById("hand");
 
-  let selectedType = null;
-  let troops = [];
-  let playerElixir = 0;
-
-  let towerLeftHealth = TOWER_MAX_HEALTH;
-  let towerRightHealth = TOWER_MAX_HEALTH;
-
-  function updateElixirUI() {
-    const widthPercent = (playerElixir / MAX_ELIXIR) * 100;
-    elixirBar.style.width = widthPercent + '%';
-    elixirText.textContent = `Elixir: ${Math.floor(playerElixir)} / ${MAX_ELIXIR}`;
+  function drawHand(deck) {
+    let shuffled = [...deck].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, 3);
   }
 
-  cards.forEach(card => {
-    card.addEventListener('click', () => {
-      if (selectedType === card.dataset.type) {
-        selectedType = null;
-        cards.forEach(c => c.classList.remove('selected'));
-        return;
+  function rotateCard(hand, deck, usedCard) {
+    const index = hand.indexOf(usedCard);
+    if (index > -1) {
+      const remainingDeck = deck.filter(c => !hand.includes(c));
+      if (remainingDeck.length > 0) {
+        const newCard = remainingDeck[Math.floor(Math.random() * remainingDeck.length)];
+        hand[index] = newCard;
       }
-      const cost = troopData[card.dataset.type].cost;
-      if (playerElixir < cost) {
-        alert('Not enough elixir!');
-        return;
-      }
-      selectedType = card.dataset.type;
-      cards.forEach(c => c.classList.remove('selected'));
-      card.classList.add('selected');
+    }
+    return hand;
+  }
+
+  function renderHand() {
+    handDiv.innerHTML = '';
+    playerHand.forEach(card => {
+      const cardDiv = document.createElement("div");
+      cardDiv.className = "card";
+      cardDiv.innerText = card;
+      cardDiv.onclick = () => {
+        spawnUnit(card, "player");
+        playerHand = rotateCard(playerHand, playerDeck, card);
+        renderHand();
+      };
+      handDiv.appendChild(cardDiv);
     });
- 
+  }
+
+  function spawnUnit(name, side) {
+    const unit = document.createElement("div");
+    unit.className = "unit";
+    unit.innerText = name[0];
+    if (side === "cpu") {
+      unit.classList.add("cpu-unit");
+    }
+    game.appendChild(unit);
+
+    // Remove after animation (10s)
+    setTimeout(() => unit.remove(), 10000);
+  }
+
+  function cpuPlay() {
+    const card = cpuHand[Math.floor(Math.random() * cpuHand.length)];
+    spawnUnit(card, "cpu");
+    cpuHand = rotateCard(cpuHand, cpuDeck, card);
+
+    // Schedule next CPU move
+    const delay = 4000 + Math.random() * 1000;
+    setTimeout(cpuPlay, delay);
+  }
+
+  // Initialize
+  playerHand = drawHand(playerDeck);
+  cpuHand = drawHand(cpuDeck);
+  renderHand();
+  cpuPlay();
+</script>
+
+</body>
+</html>
