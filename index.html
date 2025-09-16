@@ -1,205 +1,684 @@
+<!-- index.html -->
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Mini Royale — 2 Lanes, 3 Towers, Accurate Elixir</title>
+<title>Mini Royale — Full (Placement Preview + King Behind)</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
-  :root{
-    --arena: #cbe6ff;
-    --lane: #a8d4ff;
-    --accent: #2b7fb2;
-    --danger: #d9534f;
-    --panel: #ffffffdd;
-    --muted: #555;
-    --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
-  }
-  html,body{height:100%;margin:0;font-family:var(--font);background:linear-gradient(#b5e0ff,#7fc4ff);display:flex;align-items:center;justify-content:center;}
-  #root{width:980px;max-width:98vw;padding:16px;}
-  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-  h1{margin:0;font-size:20px;color:#063a5b}
-  button{background:var(--accent);color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
-  #gameWrap{display:flex;gap:10px}
-  canvas{background:var(--arena);border-radius:14px;border:5px solid #2b7fb2;box-shadow:0 6px 16px rgba(0,0,0,0.2)}
-  #uiCol{width:260px;display:flex;flex-direction:column;gap:10px}
-  .panel{background:var(--panel);border-radius:10px;padding:10px;box-shadow:0 4px 14px rgba(0,0,0,0.08)}
-  #elixirBar{height:18px;border-radius:10px;background:#e6f6ff;border:1px solid #bbe7f7;overflow:hidden}
-  #elixirFill{height:100%;background:linear-gradient(#5fc7ff,#2b7fb2);width:0%}
-  #hand{display:flex;gap:6px;justify-content:center}
-  .card{width:72px;height:92px;border-radius:8px;background:white;border:2px solid #e3e7ea;box-shadow:0 3px 8px rgba(0,0,0,0.08);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;user-select:none;transition:0.15s}
-  .card:hover{transform:translateY(-4px);box-shadow:0 6px 14px rgba(0,0,0,0.12)}
-  .card.selected{outline:3px solid #60b8ff;transform:translateY(-6px)}
-  .card .name{font-size:12px;font-weight:700;margin-bottom:4px}
-  .card .cost{font-weight:800;font-size:14px}
-  #log{height:140px;overflow:auto;font-family:monospace;font-size:12px;background:#fff;padding:6px;border-radius:6px;border:1px solid #eee}
-  #overlay{position:absolute;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
-  .modal{background:rgba(0,0,0,0.55);color:white;padding:26px;border-radius:12px;text-align:center;pointer-events:auto}
-  footer{margin-top:10px;font-size:12px;color:var(--muted)}
+:root{
+  --bg1: #dff6ff;
+  --arena: #cfe9ff;
+  --panel: rgba(255,255,255,0.95);
+  --accent: #2b7fb2;
+  --danger: #d9534f;
+  --muted: #5a6a75;
+  --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+html,body{height:100%;margin:0;font-family:var(--font);background:linear-gradient(180deg,#bfe9ff 0%, #8fd1ff 100%);display:flex;align-items:center;justify-content:center;}
+#root{width:980px;max-width:98vw;padding:18px;}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+h1{margin:0;font-size:20px;color:#063a5b}
+button{background:var(--accent);color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700}
+#gameWrap{display:flex;gap:12px;align-items:flex-start}
+canvas{background:var(--arena);border-radius:12px;border:6px solid #2d6f9b;box-shadow:0 10px 30px rgba(0,0,0,0.12)}
+#uiCol{width:300px;display:flex;flex-direction:column;gap:10px}
+.panel{background:var(--panel);border-radius:12px;padding:12px;box-shadow:0 8px 18px rgba(10,20,30,0.06)}
+#elixirBar{height:22px;border-radius:12px;background:#eaf6ff;border:1px solid #cbeefc;overflow:hidden}
+#elixirFill{height:100%;background:linear-gradient(#5fc7ff,#2b7fb2);width:0%}
+#hand{display:flex;gap:8px;justify-content:center;margin-top:8px}
+.card{width:76px;height:98px;border-radius:10px;background:white;border:2px solid #e3e7ea;box-shadow:0 6px 18px rgba(0,0,0,0.06);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;user-select:none;transition:all .12s ease}
+.card:hover{transform:translateY(-6px)}
+.card.selected{outline:3px solid #60b8ff;transform:translateY(-8px)}
+.card .name{font-size:12px;font-weight:700;margin-bottom:4px}
+.card .cost{font-weight:800;font-size:14px}
+#controls{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:8px}
+.small{font-size:12px;color:var(--muted)}
+#log{height:180px;overflow:auto;font-family:monospace;font-size:12px;background:#fff;padding:8px;border-radius:8px;border:1px solid #eee}
+#overlay{position:absolute;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.modal{background:rgba(0,0,0,0.55);color:white;padding:26px;border-radius:12px;text-align:center;pointer-events:auto}
+footer{margin-top:12px;font-size:12px;color:var(--muted)}
+
+/* preview helper label */
+.preview-label{position:fixed;background:#fff;padding:6px 10px;border-radius:8px;border:1px solid #eee;font-weight:700;box-shadow:0 6px 12px rgba(0,0,0,0.10);pointer-events:none}
 </style>
 </head>
 <body>
 <div id="root">
   <header>
-    <h1>Mini Royale</h1>
-    <button id="restartBtn">Restart</button>
+    <h1>Mini Royale — Full Build</h1>
+    <div style="display:flex;gap:10px;align-items:center">
+      <div class="small">Accurate elixir • Double after 2:00</div>
+      <button id="restartBtn">Restart</button>
+    </div>
   </header>
+
   <div id="gameWrap">
     <div style="position:relative">
-      <canvas id="canvas" width="640" height="480"></canvas>
-      <div id="overlay" style="width:640px;height:480px"></div>
+      <canvas id="canvas" width="800" height="480"></canvas>
+      <div id="overlay" style="width:800px;height:480px"></div>
     </div>
+
     <div id="uiCol">
       <div class="panel">
-        <strong>Elixir</strong>
-        <div id="elixirBar"><div id="elixirFill"></div></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <strong>Elixir</strong>
+          <div id="clock" class="small">00:00</div>
+        </div>
+        <div style="margin-top:8px" id="elixirBar"><div id="elixirFill"></div></div>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted)">Click a card, then click your left half to place. Yellow circle = deploy range; highlighted towers/units are in range.</div>
       </div>
+
       <div class="panel">
-        <strong>Your hand</strong>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <strong>Your hand</strong>
+          <div class="small">3 visible • click → preview → click to confirm</div>
+        </div>
         <div id="hand"></div>
+        <div id="controls">
+          <div class="small" id="crowns">Crowns: 0 - 0</div>
+          <button id="pickTop" class="small">Top lane</button>
+          <button id="pickBot" class="small">Bot lane</button>
+        </div>
       </div>
+
       <div class="panel">
-        <strong>Battle log</strong>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong>Battle log</strong>
+          <div class="small">Events</div>
+        </div>
         <div id="log"></div>
       </div>
     </div>
   </div>
-  <footer>GitHub Pages–ready • Accurate elixir mechanics</footer>
+
+  <footer>Single file — drop to GH Pages. Want sprites / sounds next?</footer>
 </div>
 
+<div id="previewLabel" class="preview-label" style="display:none">Preview</div>
+
 <script>
-/* --- Config --- */
+/* Full game with preview placement + king behind + preserved combat/CPU logic
+   - 2 lanes (top/bottom)
+   - 3 towers per side: crown top/bottom, king behind (closer to player's edge)
+   - 6-card deck cycles, 3 visible
+   - Elixir start 5, max 10, regen 1 / 2.8s; double elixir after 120s (1/1.4s)
+   - CPU attempts every 4-5s but only deploys when it has enough elixir
+   - Click a card -> preview moves with mouse (on left half) -> click to place
+   - Preview shows deploy radius; highlights towers/units that are in range
+*/
+
+///// CONFIG ///////
 const CONFIG = {
-  canvasW:640,canvasH:480,
-  laneY:{top:150,bottom:330},
-  towerR:26,
-  kingBackOffset:80,
-  elixir:{start:5,max:10,interval:2800,doubleAfter:120000,doubleInterval:1400},
+  W: 800, H: 480,
+  lanes: { top: 150, bottom: 330 },
+  tower: { crownX: 120, crownOffsetY: 0, crownR: 30, kingBackOffset: 90 },
+  elixir: {
+    start: 5, max: 10,
+    regenMs: 2800, doubleAfterMs: 120000, doubleRegenMs: 1400
+  },
+  cpuAttemptMin: 4000, cpuAttemptMax: 5000,
+  deckVisible: 3, deckTotal: 6
 };
-const CARDS=[
-  {id:"knight",name:"Knight",cost:3,hp:160,dmg:46,speed:50,range:18,type:"melee"},
-  {id:"archer",name:"Archer",cost:3,hp:80,dmg:28,speed:80,range:160,type:"ranged"},
-  {id:"miniTank",name:"MiniTank",cost:5,hp:320,dmg:70,speed:30,range:20,type:"melee"},
-  {id:"goblin",name:"Goblin",cost:2,hp:70,dmg:34,speed:110,range:14,type:"melee"},
-  {id:"bomber",name:"Bomber",cost:4,hp:120,dmg:90,speed:36,range:22,type:"splash",splash:28},
-  {id:"healer",name:"Healer",cost:4,hp:110,dmg:0,speed:40,range:48,type:"healer",heal:20}
+
+///// CARD CATALOG (representative stats) /////
+const CATALOG = [
+  { key:'knight', name:'Knight', cost:3, hp:160, dmg:46, speed:50, range:18, size:12, type:'melee' },
+  { key:'archer', name:'Archer', cost:3, hp:80, dmg:28, speed:80, range:140, size:10, type:'ranged', projectile:true },
+  { key:'miniTank', name:'MiniTank', cost:5, hp:320, dmg:70, speed:30, range:20, size:16, type:'melee' },
+  { key:'goblin', name:'Goblin', cost:2, hp:70, dmg:34, speed:110, range:14, size:9, type:'melee' },
+  { key:'bomber', name:'Bomber', cost:4, hp:120, dmg:90, speed:36, range:22, size:14, type:'splash', splash:28 },
+  { key:'healer', name:'Healer', cost:4, hp:110, dmg:0, speed:40, range:48, size:12, type:'healer', heal:20 }
 ];
 
-/* --- State --- */
-let state=null;
-const canvas=document.getElementById("canvas");
-const ctx=canvas.getContext("2d");
-const handEl=document.getElementById("hand");
-const elixirFill=document.getElementById("elixirFill");
-const logEl=document.getElementById("log");
-const overlay=document.getElementById("overlay");
+///// UTILS ///////
+function uid(){ return Math.random().toString(36).slice(2,9) }
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)) }
+function now(){ return performance.now(); }
+function randRange(a,b){ return Math.floor(Math.random()*(b-a+1))+a }
+function deepClone(o){ return JSON.parse(JSON.stringify(o)) }
 
-/* --- Helpers --- */
-function uid(){return Math.random().toString(36).slice(2,9)}
-function clamp(v,a,b){return Math.max(a,Math.min(v,b))}
+///// DOM REFS /////
+const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
+canvas.width = CONFIG.W; canvas.height = CONFIG.H;
+const elixirFill = document.getElementById('elixirFill');
+const clockEl = document.getElementById('clock');
+const handEl = document.getElementById('hand');
+const logEl = document.getElementById('log');
+const crownsEl = document.getElementById('crowns');
+const overlay = document.getElementById('overlay');
+const previewLabel = document.getElementById('previewLabel');
 
-/* --- Init game --- */
-function init(){
-  state={
-    elixir:CONFIG.elixir.start,elixirTick:0,time:0,
-    playerDeck:CARDS.map(c=>({...c,uid:uid()})),cpuDeck:CARDS.map(c=>({...c,uid:uid()})),
-    entities:[],preview:null,lastFrame:performance.now(),running:true,
-    playerTowers:[],cpuTowers:[]
+document.getElementById('restartBtn').onclick = ()=> initGame();
+document.getElementById('pickTop').onclick = ()=> { state.selectedLane='top'; flashSmall('Top lane selected'); };
+document.getElementById('pickBot').onclick = ()=> { state.selectedLane='bottom'; flashSmall('Bottom lane selected'); };
+
+///// GAME STATE /////
+let state = null;
+
+function initGame(){
+  overlay.innerHTML = '';
+  previewLabel.style.display = 'none';
+
+  state = {
+    timeMs: 0,
+    lastFrame: now(),
+    elixir: CONFIG.elixir.start,
+    elixirTick: 0,
+    elixirInterval: CONFIG.elixir.regenMs,
+    cpuElixir: CONFIG.elixir.start,
+    cpuElixirTick: 0,
+    playerDeck: shuffleArray(CATALOG.map(c=>({...c, uid: uid()}))),
+    cpuDeck: shuffleArray(CATALOG.map(c=>({...c, uid: uid()}))),
+    selectedCardIndex: null,   // index 0..visible-1 for hand selection
+    selectedLane: 'top',
+    preview: null,             // {x,y,card}
+    entities: [],              // units + projectiles
+    playerTowers: [],
+    cpuTowers: [],
+    cpuTimer: 0,
+    cpuNextAttempt: randRange(CONFIG.cpuAttemptMin, CONFIG.cpuAttemptMax),
+    crowns: { player:0, cpu:0 },
+    running: true
   };
-  // towers
-  const leftX=120,rightX=CONFIG.canvasW-120;
-  state.playerTowers=[
-    {x:leftX,y:CONFIG.laneY.top,hp:800,maxHp:800,owner:"player"},
-    {x:leftX,y:CONFIG.laneY.bottom,hp:800,maxHp:800,owner:"player"},
-    {x:leftX-CONFIG.kingBackOffset,y:CONFIG.canvasH/2,hp:1400,maxHp:1400,owner:"player",king:true}
+
+  // create towers - crown towers near bridge, king tower behind (toward edge)
+  const leftCrownX = CONFIG.tower.crownX;
+  const rightCrownX = CONFIG.W - CONFIG.tower.crownX;
+
+  state.playerTowers = [
+    makeTower(leftCrownX, CONFIG.lanes.top, 'player', 'left-top', false),
+    makeTower(leftCrownX, CONFIG.lanes.bottom, 'player', 'left-bottom', false),
+    makeTower(leftCrownX - CONFIG.tower.kingBackOffset, CONFIG.H/2, 'player', 'left-king', true)
   ];
-  state.cpuTowers=[
-    {x:rightX,y:CONFIG.laneY.top,hp:800,maxHp:800,owner:"cpu"},
-    {x:rightX,y:CONFIG.laneY.bottom,hp:800,maxHp:800,owner:"cpu"},
-    {x:rightX+CONFIG.kingBackOffset,y:CONFIG.canvasH/2,hp:1400,maxHp:1400,owner:"cpu",king:true}
+  state.cpuTowers = [
+    makeTower(rightCrownX, CONFIG.lanes.top, 'cpu', 'right-top', false),
+    makeTower(rightCrownX, CONFIG.lanes.bottom, 'cpu', 'right-bottom', false),
+    makeTower(rightCrownX + CONFIG.tower.kingBackOffset, CONFIG.H/2, 'cpu', 'right-king', true)
   ];
-  renderHand();logEl.innerHTML="";log("Game start!");
+
+  renderHand();
+  logClear();
+  log('Match started — good luck!');
+  updateElixirUI();
+  crownsEl.textContent = `Crowns: ${state.crowns.player} - ${state.crowns.cpu}`;
+
+  state.lastFrame = now();
   requestAnimationFrame(loop);
 }
-document.getElementById("restartBtn").onclick=init;
 
-/* --- Hand --- */
+function makeTower(x,y,owner,name,isKing=false){
+  return {
+    id: uid(),
+    x,y,
+    r: CONFIG.tower.crownR,
+    owner,
+    name,
+    isKing,
+    hp: isKing ? 1400 : 800,
+    maxHp: isKing ? 1400 : 800,
+    alive: true,
+    attackCooldown: 0,
+    attackSpeed: 1.2,
+    range: 160
+  };
+}
+
+///// DECK + HAND UI /////
 function renderHand(){
-  handEl.innerHTML="";
-  state.playerDeck.slice(0,3).forEach((c,i)=>{
-    const d=document.createElement("div");
-    d.className="card"+(state.selectedIndex===i?" selected":"");
-    d.innerHTML=`<div class="name">${c.name}</div><div class="cost">${c.cost}</div>`;
-    d.onclick=()=>{state.selectedIndex=i;renderHand()};
-    handEl.appendChild(d);
+  handEl.innerHTML = '';
+  const visible = state.playerDeck.slice(0, CONFIG.deckVisible);
+  visible.forEach((card,i) => {
+    const div = document.createElement('div');
+    div.className = 'card' + (state.selectedCardIndex === i ? ' selected' : '');
+    div.innerHTML = `<div class="name">${card.name}</div><div class="cost">${card.cost} ⬤</div>`;
+    div.onclick = ()=> {
+      if(!state.running) return;
+      // toggle selection: if clicking same selected, deselect
+      state.selectedCardIndex = (state.selectedCardIndex === i) ? null : i;
+      if(state.selectedCardIndex !== null){
+        // init preview & show label
+        const cardObj = state.playerDeck[state.selectedCardIndex];
+        state.preview = { x: CONFIG.W/4, y: (state.selectedLane==='top'?CONFIG.lanes.top:CONFIG.lanes.bottom), card: cardObj };
+        previewLabel.style.display = 'block';
+        previewLabel.textContent = `${cardObj.name} • ${cardObj.cost} ⬤`;
+      } else {
+        state.preview = null;
+        previewLabel.style.display = 'none';
+      }
+      renderHand();
+    };
+    handEl.appendChild(div);
   });
 }
 
-/* --- Placement --- */
-canvas.addEventListener("mousemove",e=>{
-  if(state.selectedIndex==null)return;
-  const rect=canvas.getBoundingClientRect();
-  const x=(e.clientX-rect.left)*(canvas.width/rect.width);
-  const y=(e.clientY-rect.top)*(canvas.height/rect.height);
-  if(x>canvas.width/2)return; // only left half
-  const card=state.playerDeck[state.selectedIndex];
-  state.preview={x,y,card};
+function shuffleArray(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+///// LOGGING /////
+function logClear(){ logEl.innerHTML = '' }
+function log(txt){ const d = document.createElement('div'); d.textContent = `[${Math.floor(state.timeMs/1000)}s] ${txt}`; logEl.prepend(d); if(logEl.children.length>120) logEl.removeChild(logEl.lastChild); }
+
+///// PREVIEW LABEL /////
+function flashSmall(msg){
+  previewLabel.style.display = 'block';
+  previewLabel.textContent = msg;
+  // position near top-right of UI temporarily
+  previewLabel.style.left = (window.innerWidth/2 + 140) + 'px';
+  previewLabel.style.top = '16px';
+  setTimeout(()=> {
+    if(state && state.selectedCardIndex !== null) previewLabel.style.display = 'block';
+    else previewLabel.style.display = 'none';
+  }, 900);
+}
+
+///// MOUSE EVENTS: preview movement + placement confirmation /////
+canvas.addEventListener('mousemove', (ev) => {
+  if(!state || state.selectedCardIndex === null) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = (ev.clientX - rect.left) * (canvas.width / rect.width);
+  const my = (ev.clientY - rect.top) * (canvas.height / rect.height);
+  // only allow preview on player's half (left)
+  if(mx > canvas.width/2) {
+    // hide preview if outside allowed area
+    state.preview = null;
+    previewLabel.style.display = 'none';
+    return;
+  }
+  const card = state.playerDeck[state.selectedCardIndex];
+  // snap Y visually to nearest lane center (but preview shows at mouse)
+  const laneY = (Math.abs(my - CONFIG.lanes.top) < Math.abs(my - CONFIG.lanes.bottom)) ? CONFIG.lanes.top : CONFIG.lanes.bottom;
+  state.preview = { x: clamp(mx, 40, canvas.width/2 - 40), y: laneY, card };
+  // show preview label near cursor (small offset)
+  previewLabel.style.display = 'block';
+  previewLabel.style.left = (ev.clientX + 16) + 'px';
+  previewLabel.style.top = (ev.clientY + 10) + 'px';
+  previewLabel.textContent = `${card.name} • ${card.cost} ⬤`;
 });
-canvas.addEventListener("click",e=>{
-  if(!state.preview)return;
-  const card=state.preview.card;
-  if(state.elixir<card.cost){log("Not enough elixir.");return;}
-  // snap Y to nearest lane
-  const laneY=Math.abs(state.preview.y-CONFIG.laneY.top)<Math.abs(state.preview.y-CONFIG.laneY.bottom)?CONFIG.laneY.top:CONFIG.laneY.bottom;
-  state.entities.push({id:uid(),...card,x:state.preview.x,y:laneY,owner:"player",hp:card.hp});
-  state.elixir-=card.cost;
+
+canvas.addEventListener('click', (ev) => {
+  if(!state || !state.preview) return;
+  // confirm placement if left half
+  const card = state.preview.card;
+  // check elixir
+  if(state.elixir < card.cost){ log('Not enough elixir to deploy ' + card.name); return; }
+  // finalize spawn at preview.x,y (we snap Y already to lane)
+  const spawnX = state.preview.x;
+  const spawnY = state.preview.y;
+  spawnEntity(card, spawnX, spawnY, 'player', (spawnY === CONFIG.lanes.top ? 'top' : 'bottom'));
+  // spend elixir & cycle card (move selected card to deck end)
+  state.elixir = Math.max(0, state.elixir - card.cost);
+  const used = state.playerDeck.splice(state.selectedCardIndex,1)[0];
+  state.playerDeck.push({...used, uid: uid()});
+  // reset selection + preview
+  state.selectedCardIndex = null;
+  state.preview = null;
+  previewLabel.style.display = 'none';
+  renderHand();
+  updateElixirUI();
+});
+
+///// SPAWN ENTITIES (units) /////
+function spawnEntity(card, x, y, owner, lane){
+  const e = {
+    id: uid(),
+    name: card.name,
+    owner,
+    x, y,
+    lane,
+    hp: card.hp,
+    maxHp: card.hp,
+    dmg: card.dmg,
+    speed: card.speed,
+    size: card.size || 12,
+    type: card.type,
+    range: card.range || 20,
+    splash: card.splash || 0,
+    heal: card.heal || 0,
+    projectile: !!card.projectile,
+    attackCooldown: 0,
+    atkSpeed: 1.0,
+    lifetime: 0
+  };
+  state.entities.push(e);
+  log(`${owner==='player' ? 'You' : 'CPU'} deployed ${card.name} (${lane})`);
+  return e;
+}
+
+///// CPU Behavior (preserved + uses elixir) /////
+function cpuTick(dt){
+  state.cpuTimer += dt;
+  if(state.cpuTimer < state.cpuNextAttempt) return;
+  state.cpuTimer = 0;
+  state.cpuNextAttempt = randRange(CONFIG.cpuAttemptMin, CONFIG.cpuAttemptMax);
+
+  // try to play one of the visible cards (cpuDeck[0..visible-1]) that it can afford
+  const visible = state.cpuDeck.slice(0, CONFIG.deckVisible);
+  const affordable = visible.filter(c => c.cost <= state.cpuElixir);
+  if(affordable.length === 0) return; // wait until it has elixir
+
+  // pick a card (prefer cheap if low elixir, otherwise random)
+  affordable.sort((a,b) => a.cost - b.cost);
+  const pick = (Math.random() < 0.6) ? affordable[0] : affordable[ randRange(0, affordable.length-1) ];
+  const idx = state.cpuDeck.findIndex(c => c.uid === pick.uid);
+  const lane = (Math.random() < 0.5) ? 'top' : 'bottom';
+  const spawnX = clamp(canvas.width - 140 + Math.random()*40, canvas.width/2+40, canvas.width - 60);
+  spawnEntity(pick, spawnX, (lane === 'top' ? CONFIG.lanes.top : CONFIG.lanes.bottom), 'cpu', lane);
+  state.cpuElixir = Math.max(0, state.cpuElixir - pick.cost);
   // cycle card
-  const used=state.playerDeck.splice(state.selectedIndex,1)[0];
-  state.playerDeck.push({...used,uid:uid()});
-  state.selectedIndex=null;state.preview=null;renderHand();
-});
-
-/* --- Game loop --- */
-function loop(t){
-  if(!state.running)return;
-  const dt=t-state.lastFrame;state.lastFrame=t;state.time+=dt;
-  // elixir regen
-  const interval=state.time>=CONFIG.elixir.doubleAfter?CONFIG.elixir.doubleInterval:CONFIG.elixir.interval;
-  state.elixirTick+=dt;while(state.elixirTick>=interval){state.elixirTick-=interval;if(state.elixir<CONFIG.elixir.max)state.elixir++;}
-  elixirFill.style.width=(state.elixir/CONFIG.elixir.max*100)+"%";
-  render();
-  requestAnimationFrame(loop);
+  const used = state.cpuDeck.splice(idx, 1)[0];
+  state.cpuDeck.push({...used, uid: uid()});
 }
 
-/* --- Render --- */
-function render(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle=CONFIG.lane;ctx.fillRect(0,CONFIG.laneY.top-70,canvas.width,120);
-  ctx.fillRect(0,CONFIG.laneY.bottom-70,canvas.width,120);
-  // towers
-  [...state.playerTowers,...state.cpuTowers].forEach(t=>{
-    ctx.fillStyle=t.owner==="player"?"#3cb371":"#d9534f";
-    ctx.beginPath();ctx.arc(t.x,t.y,CONFIG.towerR,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle="#000";ctx.font="10px sans-serif";ctx.fillText(t.king?"King":"Crown",t.x-14,t.y+38);
-  });
-  // units
-  state.entities.forEach(u=>{
-    ctx.fillStyle=u.owner==="player"?"#2b8f6a":"#b33a3a";
-    ctx.beginPath();ctx.arc(u.x,u.y,10,0,Math.PI*2);ctx.fill();
-  });
-  // preview circle
-  if(state.preview){
-    const {x,y,card}=state.preview;
-    ctx.strokeStyle="rgba(255,255,0,0.6)";
-    ctx.beginPath();ctx.arc(x,y,card.range||20,0,Math.PI*2);ctx.stroke();
-    ctx.fillStyle="rgba(255,255,0,0.2)";
-    ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
+///// SIMULATION: movement, combat, towers attack /////
+// units remain lane-bound and attack enemy units first
+
+function updateSimulation(dt){
+  const sdt = dt / 1000;
+
+  // Move units & handle unit combat/tower attacks
+  for(const u of state.entities){
+    if(u.hp <= 0) continue;
+    u.lifetime += dt;
+
+    const dir = (u.owner === 'player') ? 1 : -1;
+
+    // find nearest enemy unit in lane
+    const enemies = state.entities.filter(e => e.owner !== u.owner && e.lane === u.lane && e.hp > 0);
+    let nearest = null, nd = 1e9;
+    for(const e of enemies){
+      const d = Math.hypot(e.x - u.x, e.y - u.y);
+      if(d < nd){ nd = d; nearest = e; }
+    }
+
+    // find enemy towers relevant to lane (king towers are always relevant)
+    const enemyTowers = (u.owner === 'player') ? state.cpuTowers : state.playerTowers;
+    let nearestTower = null, td = 1e9;
+    for(const t of enemyTowers){
+      if(!t.alive) continue;
+      const relevant = t.isKing ? true : (Math.abs(t.y - (u.lane === 'top' ? CONFIG.lanes.top : CONFIG.lanes.bottom)) < 24);
+      if(!relevant) continue;
+      const d = Math.hypot(t.x - u.x, t.y - u.y);
+      if(d < td){ td = d; nearestTower = t; }
+    }
+
+    // Attack units if in range
+    if(nearest && nd <= (u.range || 18) + (u.size || 12)){
+      u.attackCooldown -= sdt;
+      if(u.attackCooldown <= 0){
+        u.attackCooldown = 1 / (u.atkSpeed || 1);
+        if(u.type === 'healer'){
+          // heal allies
+          const allies = state.entities.filter(a => a.owner === u.owner && a.lane === u.lane && a.hp > 0 && Math.hypot(a.x - u.x, a.y - u.y) <= (u.range || 48));
+          for(const a of allies) a.hp = Math.min(a.maxHp, a.hp + (u.heal || 10));
+        } else if(u.type === 'splash' && u.splash){
+          for(const e of enemies){
+            if(Math.hypot(e.x - nearest.x, e.y - nearest.y) <= u.splash) e.hp -= u.dmg;
+          }
+        } else {
+          nearest.hp -= u.dmg;
+        }
+      }
+    } else if(nearestTower && td <= (u.range || 18) + nearestTower.r){
+      // attack tower
+      u.attackCooldown -= sdt;
+      if(u.attackCooldown <= 0){
+        u.attackCooldown = 1 / (u.atkSpeed || 1);
+        if(u.type !== 'healer') nearestTower.hp -= u.dmg;
+      }
+    } else {
+      // otherwise move forward
+      u.x += dir * u.speed * sdt;
+      // snap to lane
+      const laneY = (u.lane === 'top' ? CONFIG.lanes.top : CONFIG.lanes.bottom);
+      u.y += (laneY - u.y) * 0.15;
+    }
+  }
+
+  // Tower attacks: target nearest enemy in range (units preferred)
+  function towerAttack(t, dtSec){
+    if(!t.alive) return;
+    t.attackCooldown -= dtSec;
+    // find units of opposite owner in range and same lane (king towers can target both)
+    const enemies = state.entities.filter(e => e.owner !== t.owner && Math.abs(e.y - t.y) < 60 && e.hp > 0);
+    if(enemies.length > 0){
+      enemies.sort((a,b) => Math.hypot(a.x - t.x, a.y - t.y) - Math.hypot(b.x - t.x, b.y - t.y));
+      if(Math.hypot(enemies[0].x - t.x, enemies[0].y - t.y) <= t.range){
+        if(t.attackCooldown <= 0){
+          t.attackCooldown = t.attackSpeed;
+          enemies[0].hp -= 90; // tower hit
+        }
+      }
+    }
+    else {
+      // optionally can attack towers (if units absent in lane) - omitted for simplicity
+    }
+  }
+
+  const dtSec = dt / 1000;
+  for(const t of state.playerTowers) towerAttack(t, dtSec);
+  for(const t of state.cpuTowers) towerAttack(t, dtSec);
+
+  // Remove dead units / OOB
+  state.entities = state.entities.filter(u => u.hp > 0 && u.x > -100 && u.x < canvas.width + 100);
+
+  // Check towers hp and destruction
+  for(const t of [...state.playerTowers, ...state.cpuTowers]){
+    if(t.alive && t.hp <= 0){
+      t.alive = false;
+      if(t.isKing){
+        log(`${t.owner.toUpperCase()} king tower destroyed!`);
+        const winner = (t.owner === 'player') ? 'cpu' : 'player';
+        endMatch(winner, 'King tower destroyed');
+        return;
+      } else {
+        log(`${t.owner.toUpperCase()} ${t.name} destroyed!`);
+        if(t.owner === 'player') state.crowns.cpu++;
+        else state.crowns.player++;
+        crownsEl.textContent = `Crowns: ${state.crowns.player} - ${state.crowns.cpu}`;
+      }
+    }
   }
 }
 
-/* --- Logging --- */
-function log(txt){const d=document.createElement("div");d.textContent=txt;logEl.prepend(d)}
+///// RENDERING ///// 
+function render(){
+  // clear
+  ctx.clearRect(0,0,CONFIG.W,CONFIG.H);
 
-init();
+  // lanes background
+  ctx.fillStyle = '#bfeaff';
+  ctx.fillRect(0, CONFIG.lanes.top - 84, CONFIG.W, 150);
+  ctx.fillRect(0, CONFIG.lanes.bottom - 84, CONFIG.W, 150);
+
+  // center divider (bridge line)
+  ctx.fillStyle = '#245c7a22';
+  ctx.fillRect(CONFIG.W/2 - 1, 0, 2, CONFIG.H);
+
+  // towers: draw player crown towers (closer to bridge) first, then player king behind (further from bridge)
+  // So visual depth is: crown towers (front) -> units -> king tower (back). To render king behind, draw it BEFORE units and crown afterwards.
+  // We want king visually behind crown towers: draw king first.
+  // player king behind
+  state.playerTowers.filter(t=>t.isKing).forEach(t=>drawTower(t));
+  // cpu king behind
+  state.cpuTowers.filter(t=>t.isKing).forEach(t=>drawTower(t));
+
+  // draw crown towers (front)
+  state.playerTowers.filter(t=>!t.isKing).forEach(t=>drawTower(t));
+  state.cpuTowers.filter(t=>!t.isKing).forEach(t=>drawTower(t));
+
+  // draw units (units are in front of king but can overlap crown towers visually)
+  for(const u of state.entities) drawUnit(u);
+
+  // draw preview (if any) on top
+  if(state.preview){
+    const p = state.preview;
+    // translucent circle for range
+    ctx.beginPath();
+    ctx.fillStyle = 'rgba(255,240,80,0.12)';
+    ctx.strokeStyle = 'rgba(255,240,80,0.9)';
+    ctx.lineWidth = 2;
+    ctx.arc(p.x, p.y, p.card.range || 20, 0, Math.PI*2);
+    ctx.fill(); ctx.stroke();
+    // small center marker
+    ctx.beginPath(); ctx.fillStyle = 'rgba(255,240,80,0.9)'; ctx.arc(p.x,p.y,8,0,Math.PI*2); ctx.fill();
+
+    // highlight towers/units that would be in range of this spawn (immediate threats)
+    highlightThreatsAt(p.x,p.y,p.card.range || 20);
+  }
+
+  // HUD: elixir
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.font = '12px sans-serif';
+  ctx.fillText(`Elixir: ${Math.floor(state.elixir)}`, 12, 18);
+  // optionally draw cpu elixir for debug (disabled) - can enable later
+}
+
+function drawTower(t){
+  ctx.save();
+  ctx.translate(t.x, t.y);
+  // shadow / base
+  ctx.beginPath();
+  ctx.fillStyle = t.owner === 'player' ? '#7fe0b1' : '#f5a3a3';
+  ctx.globalAlpha = t.alive ? 1 : 0.36;
+  ctx.arc(0,0,t.r,0,Math.PI*2); ctx.fill();
+  // flag white
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(-9, -t.r - 20, 18, 10);
+  // hp bar
+  const w = 80; const h = 8;
+  ctx.fillStyle = '#333'; ctx.fillRect(-w/2, -t.r - 32, w, h);
+  ctx.fillStyle = '#2b7fb2'; ctx.fillRect(-w/2, -t.r - 32, w * Math.max(0, t.hp / t.maxHp), h);
+  ctx.strokeStyle = '#00000022'; ctx.strokeRect(-w/2, -t.r - 32, w, h);
+  // text
+  ctx.fillStyle = '#000'; ctx.font = '12px sans-serif';
+  ctx.fillText(Math.max(0, Math.round(t.hp)), -10, -t.r - 36);
+  ctx.restore();
+}
+
+function drawUnit(u){
+  ctx.save();
+  ctx.translate(u.x, u.y);
+  ctx.globalAlpha = u.hp > 0 ? 1 : 0.5;
+  ctx.fillStyle = (u.owner === 'player') ? '#2b8f6a' : '#b33a3a';
+  ctx.beginPath(); ctx.arc(0,0, u.size, 0, Math.PI*2); ctx.fill();
+  // name initial
+  ctx.fillStyle = '#fff'; ctx.font = '10px sans-serif'; ctx.textAlign='center';
+  ctx.fillText(u.name[0], 0, 4);
+  // hp bar
+  const bw = u.size * 2.4;
+  ctx.fillStyle = '#333'; ctx.fillRect(-bw/2, -u.size - 10, bw, 4);
+  ctx.fillStyle = '#2b7fb2'; ctx.fillRect(-bw/2, -u.size - 10, bw * Math.max(0, u.hp / u.maxHp), 4);
+  ctx.restore();
+}
+
+// highlight towers and enemy units that would be threats at deploy position
+function highlightThreatsAt(x,y,range){
+  // check towers of both sides
+  const allTowers = [...state.playerTowers, ...state.cpuTowers];
+  for(const t of allTowers){
+    if(!t.alive) continue;
+    const d = Math.hypot(t.x - x, t.y - y);
+    // if tower's attack range can reach this spawn within small margin
+    if(d <= t.range + 6){
+      // draw ring around tower
+      ctx.beginPath(); ctx.lineWidth = 3;
+      ctx.strokeStyle = (t.owner === 'player') ? 'rgba(60,200,120,0.9)' : 'rgba(220,90,90,0.9)';
+      ctx.arc(t.x, t.y, t.r + 6, 0, Math.PI*2); ctx.stroke();
+    }
+  }
+  // enemy units in lane
+  const enemies = state.entities.filter(e => e.hp > 0 && Math.hypot(e.x - x, e.y - y) <= (e.range + 6));
+  for(const e of enemies){
+    // draw ring around the enemy unit
+    ctx.beginPath(); ctx.lineWidth = 2;
+    ctx.strokeStyle = e.owner === 'player' ? 'rgba(60,200,120,0.9)' : 'rgba(220,90,90,0.9)';
+    ctx.arc(e.x, e.y, e.size + 6, 0, Math.PI*2); ctx.stroke();
+  }
+}
+
+///// END MATCH /////
+function endMatch(winner, reason){
+  state.running = false;
+  log(`Match ended: ${winner.toUpperCase()} wins — ${reason}`);
+  overlay.innerHTML = '';
+  const modal = document.createElement('div'); modal.className = 'modal';
+  modal.style.minWidth = '360px';
+  modal.innerHTML = `
+    <h2 style="margin:6px 0">${winner === 'player' ? 'You Win!' : 'CPU Wins'}</h2>
+    <div style="margin:10px 0">${reason}</div>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button id="replayBtn" style="padding:8px 12px;border-radius:8px;border:none;background:#2b7fb2;color:white;font-weight:700">Play Again</button>
+    </div>
+  `;
+  overlay.appendChild(modal);
+  document.getElementById('replayBtn').onclick = ()=> initGame();
+}
+
+///// ELIXIR UI /////
+function updateElixirUI(){
+  const pct = Math.round((state.elixir / CONFIG.elixir.max) * 100);
+  elixirFill.style.width = pct + '%';
+}
+
+///// LOOP /////
+function loop(timestamp){
+  if(!state) return;
+  const dt = timestamp - state.lastFrame; state.lastFrame = timestamp; state.timeMs += dt;
+
+  if(state.running){
+    // update elixir tick interval (double elixir after doubleAfterMs)
+    const interval = (state.timeMs >= CONFIG.elixir.doubleAfterMs) ? CONFIG.elixir.doubleRegenMs : CONFIG.elixir.regenMs;
+    // player elixir
+    state.elixirTick += dt;
+    while(state.elixirTick >= interval){
+      state.elixirTick -= interval;
+      if(state.elixir < CONFIG.elixir.max) state.elixir++;
+    }
+    state.elixir = Math.min(CONFIG.elixir.max, state.elixir);
+    updateElixirUI();
+
+    // cpu elixir
+    state.cpuElixirTick += dt;
+    while(state.cpuElixirTick >= interval){
+      state.cpuElixirTick -= interval;
+      if(state.cpuElixir < CONFIG.elixir.max) state.cpuElixir++;
+    }
+    state.cpuElixir = Math.min(CONFIG.elixir.max, state.cpuElixir);
+
+    // CPU attempt
+    cpuTick(dt);
+
+    // simulation step
+    updateSimulation(dt);
+
+    // UI clock
+    const mm = Math.floor(state.timeMs / 60000);
+    const ss = Math.floor((state.timeMs % 60000) / 1000);
+    clockEl.textContent = `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+  }
+
+  // render everything
+  render();
+
+  if(state.running) requestAnimationFrame(loop);
+}
+
+///// HELPERS: init + start /////
+function logInitialHand(){
+  const vis = state.playerDeck.slice(0, CONFIG.deckVisible).map(c => c.name).join(', ');
+  log('Initial hand: ' + vis);
+}
+
+// start game
+initGame();
+logInitialHand();
+renderHand();
+requestAnimationFrame(loop);
+
 </script>
 </body>
 </html>
