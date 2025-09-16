@@ -1,41 +1,41 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Clash Royale — MEGA 3D Full (OrbitControls fix + defensive)</title>
-  <style>
-    html,body{height:100%;margin:0;background:#071019;color:#e6eef6;font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial}
-    #canvasHolder{position:absolute;left:0;top:0;right:420px;bottom:0}
-    #ui{position:absolute;right:12px;top:12px;width:404px;background:linear-gradient(180deg, rgba(6,12,16,0.96), rgba(3,6,8,0.92)); padding:14px; border-radius:10px; box-shadow:0 20px 40px rgba(0,0,0,0.6); z-index:40}
-    .row{display:flex;gap:8px;align-items:center}
-    .btn{padding:8px 10px;border-radius:8px;background:#0b2b2a;border:1px solid rgba(255,255,255,0.03);color:#dff7ff;cursor:pointer}
-    label{display:block;font-size:13px;color:#9fb3bf;margin-top:10px}
-    .muted{color:#9fb3bf;font-size:12px}
-    .deck{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-    .card{width:86px;height:104px;background:#e8eedc;color:#082;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;cursor:pointer}
-    .card.disabled{opacity:0.4;pointer-events:none}
-    #elixirBar{height:18px;background:#042;border-radius:9px;margin-top:8px;overflow:hidden}
-    #elixirFill{height:100%;width:0%;background:linear-gradient(180deg,#ffe26b,#ffc83a)}
-    #log{margin-top:10px;height:190px;overflow:auto;background:#021016;padding:8px;border-radius:6px;font-family:monospace;font-size:12px}
-    footer{position:absolute;right:12px;bottom:12px;color:#789;font-size:12px}
-    .small{font-size:12px;color:#9fb3bf}
-    .mutedTiny{font-size:11px;color:#7f9ca8}
-    @media (max-width:1200px){ #canvasHolder{right:320px} #ui{width:320px} .card{width:70px;height:90px} }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Clash Royale — MEGA All Features Build</title>
+<style>
+  html,body{height:100%;margin:0;background:#071019;color:#e6eef6;font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial}
+  #canvasHolder{position:absolute;left:0;top:0;right:420px;bottom:0;background:linear-gradient(180deg,#6aa9d3,#2b6f86)}
+  #ui{position:absolute;right:12px;top:12px;width:404px;background:linear-gradient(180deg, rgba(6,12,16,0.96), rgba(3,6,8,0.92)); padding:14px; border-radius:10px; box-shadow:0 20px 40px rgba(0,0,0,0.6); z-index:40}
+  .row{display:flex;gap:8px;align-items:center}
+  .btn{padding:8px 10px;border-radius:8px;background:#0b2b2a;border:1px solid rgba(255,255,255,0.03);color:#dff7ff;cursor:pointer}
+  label{display:block;font-size:13px;color:#9fb3bf;margin-top:10px}
+  .muted{color:#9fb3bf;font-size:12px}
+  .deck{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .card{width:86px;height:104px;background:#e8eedc;color:#082;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;cursor:pointer}
+  .card.disabled{opacity:0.4;pointer-events:none}
+  #elixirBar{height:18px;background:#042;border-radius:9px;margin-top:8px;overflow:hidden}
+  #elixirFill{height:100%;width:0%;background:linear-gradient(180deg,#ffe26b,#ffc83a)}
+  #log{margin-top:10px;height:160px;overflow:auto;background:#021016;padding:8px;border-radius:6px;font-family:monospace;font-size:12px}
+  footer{position:absolute;right:12px;bottom:12px;color:#789;font-size:12px}
+  .small{font-size:12px;color:#9fb3bf}
+  .mutedTiny{font-size:11px;color:#7f9ca8}
+  canvas{display:block}
+  @media (max-width:1200px){ #canvasHolder{right:320px} #ui{width:320px} .card{width:70px;height:90px} }
+</style>
 
-  <!-- Use a Three.js version that still provides the non-module OrbitControls helper -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
-  <!-- Legacy non-module controls so `new THREE.OrbitControls(...)` works -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/controls/OrbitControls.js"></script>
+<!-- three + legacy OrbitControls (works with current file pattern) -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
   <div id="canvasHolder"></div>
 
   <div id="ui">
     <div style="display:flex;justify-content:space-between;align-items:center">
-      <strong>CLASH — MEGA 3D (Full)</strong>
-      <div class="muted">OrbitControls fixed · Defensive loop</div>
+      <strong>CLASH — MEGA (All Features)</strong>
+      <div class="muted">Bright arena · Defensive loop</div>
     </div>
 
     <div class="row" style="margin-top:10px">
@@ -45,737 +45,620 @@
       <label style="margin-left:auto"><input id="debugToggle" type="checkbox"> <span class="small muted">Debug</span></label>
     </div>
 
-    <label class="muted">Deck / Elixir</label>
+    <label class="muted">Elixir</label>
     <div id="elixirBar"><div id="elixirFill"></div></div>
     <div class="muted" id="elixirText">Elixir: 0 / 10</div>
 
+    <label class="muted">Deck (click a card, then click your side)</label>
     <div class="deck" id="deck"></div>
-    <div class="mutedTiny" style="margin-top:8px">Click a card, then click anywhere on your side to deploy.</div>
 
-    <label class="muted" style="margin-top:12px">Notes</label>
-    <div class="mutedTiny">Drop tower textures into <code>textures/tower_diffuse.png</code> and <code>textures/tower_normal.png</code> (optional). The scene will fallback to color materials if missing.</div>
+    <div class="mutedTiny" style="margin-top:8px">Drop textures into <code>textures/tower_diffuse.png</code> and <code>textures/tower_normal.png</code> (optional).</div>
 
     <div id="log"></div>
   </div>
 
   <footer>Save as <code>index.html</code></footer>
 
-  <script>
-  /**************************************************************************
-   * Full Mega Rebuild (with OrbitControls legacy fix and defensive wrappers)
-   *
-   * - Uses three@0.154.0 + examples/js/controls/OrbitControls.js to keep
-   *   `new THREE.OrbitControls(camera, dom)` working (fixes the "OrbitControls
-   *   is not a constructor" error you saw).
-   * - Wraps game updates in try/catch so the arena always renders.
-   * - All gameplay: lane waypoints aligned to bridge entrances, troop/tower
-   *   combat, projectiles, healthbars, elixir/deck UI, debug toggle.
-   *
-   * If anything still goes black, open DevTools Console and paste the first
-   * red error lines back to me.
-   **************************************************************************/
+<script>
+/*************************************************************************
+ * Mega All Features Build
+ * - Brightened lights
+ * - Waypoints aligned to bridge entrances
+ * - Troop AI: attack nearby units only; otherwise go for enemy towers
+ * - Towers target troops only if they've crossed the post-bridge or are touching
+ * - Elixir & deck UI; card placement; defensive rendering
+ * - Legacy OrbitControls included via script tag (no constructor error)
+ *
+ * If anything breaks: open devtools console (F12) and paste the first red error lines.
+ *************************************************************************/
 
-  // -------------------- Small helpers --------------------
-  const logEl = document.getElementById('log');
-  function log(...args){
-    const s = new Date().toLocaleTimeString() + '  ' + args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
-    logEl.innerText = s + '\\n' + logEl.innerText;
-    if(logEl.innerText.length > 40000) logEl.innerText = logEl.innerText.substr(0,40000);
-    console.log(...args);
-  }
-  function errLog(prefix, e){
-    const m = prefix + ': ' + (e && e.stack ? e.stack : String(e));
-    log(m);
-    console.error(m);
-  }
-  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
-  function vdist(a,b){ const dx=a.x-b.x, dz=a.z-b.z; return Math.sqrt(dx*dx + dz*dz); }
-  function randRange(a,b){ return a + Math.random()*(b-a); }
-  function now(){ return performance.now() / 1000; }
+/* ------------------- Utilities ------------------- */
+const logEl = document.getElementById('log');
+function log(...args){
+  const s = new Date().toLocaleTimeString() + '  ' + args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+  logEl.innerText = s + '\n' + logEl.innerText;
+  if(logEl.innerText.length > 40000) logEl.innerText = logEl.innerText.substr(0,40000);
+  console.log(...args);
+}
+function errLog(prefix, e){
+  const m = prefix + ': ' + (e && e.stack ? e.stack : String(e));
+  log(m); console.error(m);
+}
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function vdist(a,b){ const dx=a.x-b.x, dz=a.z-b.z; return Math.sqrt(dx*dx + dz*dz); }
+function now(){ return performance.now() / 1000; }
+function randRange(a,b){ return a + Math.random()*(b-a); }
 
-  // -------------------- Renderer / Camera / Controls --------------------
-  const canvasHolder = document.getElementById('canvasHolder');
-  const W = Math.max(1100, window.innerWidth - 440);
-  const H = window.innerHeight;
+/* ------------------- Renderer / Camera / Controls ------------------- */
+const canvasHolder = document.getElementById('canvasHolder');
+let W = Math.max(1100, window.innerWidth - 440);
+let H = window.innerHeight;
 
-  // Create scene (baseline sky so it's never black)
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x86c0d8);
-  scene.fog = new THREE.FogExp2(0x071019, 0.0022);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x9fd7ee); // bright sky
+scene.fog = new THREE.FogExp2(0x071019, 0.0020);
 
-  const camera = new THREE.PerspectiveCamera(50, W/H, 0.1, 2000);
-  camera.position.set(0, 180, 360);
-  camera.lookAt(0, 12, 0);
+const camera = new THREE.PerspectiveCamera(52, W/H, 0.1, 2000);
+camera.position.set(0, 170, 380);
+camera.lookAt(0, 18, 0);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(W, H);
-  renderer.setPixelRatio(window.devicePixelRatio || 1);
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  canvasHolder.appendChild(renderer.domElement);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(W,H);
+renderer.setPixelRatio(window.devicePixelRatio || 1);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+canvasHolder.appendChild(renderer.domElement);
 
-  // OrbitControls legacy (loaded via script tag) -> available as THREE.OrbitControls
-  let controls;
-  try {
-    controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.target.set(0, 12, 0);
-    controls.enablePan = false;
-    controls.enableDamping = true;
-    controls.minDistance = 120;
-    controls.maxDistance = 520;
-    controls.update();
-  } catch(e) {
-    errLog('OrbitControls init failed', e);
-    // fallback: no controls, camera remains fixed
-    controls = { update: function(){} };
-  }
+let controls;
+try {
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 18, 0);
+  controls.enablePan = false;
+  controls.enableDamping = true;
+  controls.minDistance = 120;
+  controls.maxDistance = 520;
+  controls.update();
+} catch(e) {
+  errLog('OrbitControls init failed', e);
+  controls = { update: ()=>{} };
+}
 
-  window.addEventListener('resize', () => {
-    const w = Math.max(900, window.innerWidth - 440);
-    const h = window.innerHeight;
-    renderer.setSize(w, h);
-    camera.aspect = w/h; camera.updateProjectionMatrix();
-  });
+window.addEventListener('resize', ()=>{
+  W = Math.max(900, window.innerWidth - 440);
+  H = window.innerHeight;
+  renderer.setSize(W,H);
+  camera.aspect = W/H; camera.updateProjectionMatrix();
+});
 
-  // -------------------- Lights --------------------
-  const hemi = new THREE.HemisphereLight(0xbbdffb, 0x080820, 0.6);
-  scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffffff, 0.95);
-  sun.position.set(120, 260, 90);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.near = 10;
-  sun.shadow.camera.far = 900;
-  sun.shadow.camera.left = -400; sun.shadow.camera.right = 400; sun.shadow.camera.top = 400; sun.shadow.camera.bottom = -400;
-  scene.add(sun);
-  const ambient = new THREE.AmbientLight(0xffffff, 0.12); scene.add(ambient);
+/* ------------------- Lights (brightened) ------------------- */
+const ambient = new THREE.AmbientLight(0xffffff, 1.0); scene.add(ambient);
+const hemi = new THREE.HemisphereLight(0xbfdfff, 0x444444, 0.6); hemi.position.set(0,200,0); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffffff, 1.05); sun.position.set(110,260,90); sun.castShadow = true;
+// shadow camera trimmed for performance
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.near = 10; sun.shadow.camera.far = 900;
+sun.shadow.camera.left = -400; sun.shadow.camera.right = 400; sun.shadow.camera.top = 400; sun.shadow.camera.bottom = -400;
+scene.add(sun);
 
-  // -------------------- Arena geometry --------------------
-  const ARENA_W = 300, ARENA_H = 420, RIVER_H = 54, BRIDGE_W = 60;
-  const arenaGroup = new THREE.Group(); scene.add(arenaGroup);
+/* ------------------- Arena geometry ------------------- */
+const ARENA_W = 320, ARENA_H = 420, RIVER_H = 56, BRIDGE_W = 68;
+const arenaGroup = new THREE.Group(); scene.add(arenaGroup);
 
-  const groundMat = new THREE.MeshStandardMaterial({ color: 0x163f2e, roughness: 0.95 });
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_W, ARENA_H), groundMat); ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; arenaGroup.add(ground);
+const groundMat = new THREE.MeshStandardMaterial({ color: 0x164b32, roughness: 0.94 });
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_W, ARENA_H), groundMat);
+ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; arenaGroup.add(ground);
 
-  const riverMat = new THREE.MeshStandardMaterial({ color: 0x1e6b88, metalness: 0.08, roughness: 0.5 });
-  const river = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_W, RIVER_H), riverMat); river.rotation.x = -Math.PI/2; river.position.y = 0.02; river.receiveShadow = true; arenaGroup.add(river);
+const riverMat = new THREE.MeshStandardMaterial({ color: 0x1f76ad, metalness: 0.03, roughness: 0.5 });
+const river = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_W, RIVER_H), riverMat);
+river.rotation.x = -Math.PI/2; river.position.y = 0.02; river.receiveShadow = true; arenaGroup.add(river);
 
-  const bridgeGeom = new THREE.BoxGeometry(BRIDGE_W, 2, 120);
-  const bridgeMat = new THREE.MeshStandardMaterial({ color: 0x7d5a34, roughness: 0.6 });
-  const bridgeLeft = new THREE.Mesh(bridgeGeom, bridgeMat); bridgeLeft.position.set(-64, 0.5, 0); bridgeLeft.receiveShadow = bridgeLeft.castShadow = true; arenaGroup.add(bridgeLeft);
-  const bridgeRight = new THREE.Mesh(bridgeGeom, bridgeMat); bridgeRight.position.set(64, 0.5, 0); bridgeRight.receiveShadow = bridgeRight.castShadow = true; arenaGroup.add(bridgeRight);
+const bridgeGeom = new THREE.BoxGeometry(BRIDGE_W, 2, 120);
+const bridgeMat = new THREE.MeshStandardMaterial({ color: 0x7d5a34, roughness: 0.6 });
+const bridgeL = new THREE.Mesh(bridgeGeom, bridgeMat); bridgeL.position.set(-64, 0.5, 0); bridgeL.receiveShadow = bridgeL.castShadow = true; arenaGroup.add(bridgeL);
+const bridgeR = new THREE.Mesh(bridgeGeom, bridgeMat); bridgeR.position.set(64, 0.5, 0); bridgeR.receiveShadow = bridgeR.castShadow = true; arenaGroup.add(bridgeR);
 
-  const edgeMat = new THREE.MeshStandardMaterial({ color: 0x0c2520, roughness: 0.95 });
-  const edge1 = new THREE.Mesh(new THREE.BoxGeometry(ARENA_W + 24, 8, 20), edgeMat); edge1.position.set(0, 4, ARENA_H/2 + 12); edge1.receiveShadow = true; scene.add(edge1);
-  const edge2 = edge1.clone(); edge2.position.set(0, 4, -ARENA_H/2 - 12); scene.add(edge2);
+const edgeMat = new THREE.MeshStandardMaterial({ color: 0x0c2520, roughness: 0.95 });
+const edgeTop = new THREE.Mesh(new THREE.BoxGeometry(ARENA_W + 28, 8, 24), edgeMat); edgeTop.position.set(0,4,ARENA_H/2 + 14); edgeTop.receiveShadow = true; scene.add(edgeTop);
+const edgeBot = edgeTop.clone(); edgeBot.position.set(0,4,-ARENA_H/2 - 14); scene.add(edgeBot);
 
-  // -------------------- Waypoints (bridge-aligned) --------------------
-  const Lanes = {
-    left: [
-      new THREE.Vector3(-64, 0, ARENA_H/2 - 46),
-      new THREE.Vector3(-64, 0, 52),
-      new THREE.Vector3(-64, 0, 0),   // post-bridge aligned on bridge entrance
-      new THREE.Vector3(-64, 0, -52),
-      new THREE.Vector3(-64, 0, -ARENA_H/2 + 46)
-    ],
-    right: [
-      new THREE.Vector3(64, 0, ARENA_H/2 - 46),
-      new THREE.Vector3(64, 0, 52),
-      new THREE.Vector3(64, 0, 0),
-      new THREE.Vector3(64, 0, -52),
-      new THREE.Vector3(64, 0, -ARENA_H/2 + 46)
-    ]
-  };
+/* ------------------- Waypoints aligned to bridges ------------------- */
+/* lane: [spawnAnchor, preBridge, postBridge, enemyApproach, enemySpawn] */
+const Lanes = {
+  left: [
+    new THREE.Vector3(-64,0, ARENA_H/2 - 56),
+    new THREE.Vector3(-64,0, 58),
+    new THREE.Vector3(-64,0, 0), // post-bridge aligned on entrance (no longer mid-river)
+    new THREE.Vector3(-64,0, -58),
+    new THREE.Vector3(-64,0, -ARENA_H/2 + 56)
+  ],
+  right: [
+    new THREE.Vector3(64,0, ARENA_H/2 - 56),
+    new THREE.Vector3(64,0, 58),
+    new THREE.Vector3(64,0, 0),
+    new THREE.Vector3(64,0, -58),
+    new THREE.Vector3(64,0, -ARENA_H/2 + 56)
+  ]
+};
 
-  // debug markers
-  const debugGroup = new THREE.Group(); debugGroup.visible = false; scene.add(debugGroup);
-  function rebuildDebugMarkers(){
-    try{
-      debugGroup.clear();
-      const preMat = new THREE.MeshBasicMaterial({ color: 0x2ea0ff });
-      const postMat = new THREE.MeshBasicMaterial({ color: 0xff4c4c });
-      const preG = new THREE.SphereGeometry(3.4, 12, 12);
-      const postG = new THREE.SphereGeometry(3.6, 12, 12);
-      for(const side of ['left','right']){
-        const lane = Lanes[side];
-        const pre = new THREE.Mesh(preG, preMat); pre.position.copy(lane[1]); pre.position.y = 4; debugGroup.add(pre);
-        const post = new THREE.Mesh(postG, postMat); post.position.copy(lane[2]); post.position.y = 4; debugGroup.add(post);
-        for(let i=0;i<lane.length;i++){
-          const dot = new THREE.Mesh(new THREE.SphereGeometry(1.6,8,8), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.06 }));
-          dot.position.copy(lane[i]); dot.position.y = 2; debugGroup.add(dot);
-        }
-      }
-    }catch(e){ errLog('rebuildDebugMarkers error', e); }
-  }
-  rebuildDebugMarkers();
-
-  // -------------------- World pools --------------------
-  const World = { troops: [], towers: [], projectiles: [], effects: [] };
-
-  // -------------------- Texture loader (safe) --------------------
-  const texLoader = new THREE.TextureLoader();
-  let towerDiffuse = null, towerNormal = null, texturesAttempted = false;
-  function safeLoadTowerTextures(){
-    if(texturesAttempted) return;
-    texturesAttempted = true;
-    try {
-      texLoader.load('textures/tower_diffuse.png',
-        tex => { towerDiffuse = tex; towerDiffuse.encoding = THREE.sRGBEncoding; log('tower_diffuse loaded'); },
-        undefined,
-        () => { log('tower_diffuse not found — using fallback color'); }
-      );
-      texLoader.load('textures/tower_normal.png',
-        tex => { towerNormal = tex; log('tower_normal loaded'); },
-        undefined,
-        () => {}
-      );
-    } catch(e){ errLog('safeLoadTowerTextures error', e); }
-  }
-  safeLoadTowerTextures();
-
-  function towerMaterialFor(team){
-    try{
-      if(towerDiffuse){
-        return new THREE.MeshStandardMaterial({ map: towerDiffuse, normalMap: towerNormal || null, metalness: 0.05, roughness: 0.6 });
-      }
-      const c = (team === 'player') ? 0x2f7a47 : 0x7a2f2f;
-      return new THREE.MeshStandardMaterial({ color: c, metalness: 0.05, roughness: 0.6 });
-    }catch(e){ errLog('towerMaterialFor error', e); return new THREE.MeshStandardMaterial({ color:0x999999 }); }
-  }
-
-  // -------------------- Visual helpers --------------------
-  function createHealthBar(width = 28){
-    const g = new THREE.Group();
-    const back = new THREE.Mesh(new THREE.PlaneGeometry(width, 3), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.6 }));
-    const front = new THREE.Mesh(new THREE.PlaneGeometry(width - 2, 2.2), new THREE.MeshBasicMaterial({ color: 0x33ff88 }));
-    front.name = 'hpFront';
-    front.position.z = 0.01;
-    back.add(front);
-    g.add(back);
-    g.position.y = 36;
-    return g;
-  }
-
-  function makeTowerMesh(kind, team){
-    const geo = new THREE.CylinderGeometry(14, 14, 34, 14);
-    const mat = towerMaterialFor(team);
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.castShadow = true; mesh.receiveShadow = true;
-    return mesh;
-  }
-
-  function makeTroopMesh(team, size){
-    const color = (team === 'player') ? 0xffe0b0 : 0xffb0b0;
-    const geo = new THREE.BoxGeometry(size, size, size);
-    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.6 });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.castShadow = true; mesh.receiveShadow = true;
-    return mesh;
-  }
-
-  // -------------------- Tower class --------------------
-  function Tower(opts){
-    this.team = opts.team;
-    this.kind = opts.kind; // 'princess' or 'king'
-    this.pos = opts.pos.clone();
-    this.baseHP = (this.kind === 'king') ? 1900 : 1100;
-    this.hp = this.baseHP;
-    this.baseDamage = (this.kind === 'king') ? 110 : 55;
-    this.baseRange = (this.kind === 'king') ? 150 : 120;
-    this.baseFireRate = 1.0;
-    this.damage = this.baseDamage;
-    this.range = this.baseRange;
-    this.fireRate = this.baseFireRate;
-    this.cooldown = 0;
-    try {
-      this.mesh = makeTowerMesh(this.kind, this.team);
-      this.mesh.position.set(this.pos.x, 18, this.pos.z);
-      this.hpBar = createHealthBar(28);
-      this.hpBar.position.set(this.pos.x, 46, this.pos.z);
-      scene.add(this.mesh); scene.add(this.hpBar);
-      this.id = this.team + '-' + this.kind;
-    } catch(e) { errLog('Tower ctor error', e); }
-  }
-
-  Tower.prototype.updateVisual = function(){
-    try{
-      const front = this.hpBar.children[0].getObjectByName('hpFront');
-      if(front){
-        const pct = clamp(this.hp / this.baseHP, 0, 1);
-        front.scale.x = pct;
-        front.position.x = -((28 - 2) * (1 - pct)) / 2;
-      }
-      if(this.hp <= 0){
-        if(this.mesh.material && this.mesh.material.color) this.mesh.material.color.setHex(0x333333);
-      }
-    }catch(e){ errLog('Tower.updateVisual error', e); }
-  };
-
-  Tower.prototype.canTarget = function(candidate){
-    try{
-      if(!candidate || candidate.hp <= 0) return false;
-      if(Math.sign(this.pos.z) !== Math.sign(candidate.mesh.position.z)) return false;
-      const d = vdist(this.pos, candidate.mesh.position);
-      const touchThresh = (candidate.size || 8) + 14;
-      if(!candidate.crossedBridge && d > this.range && d > touchThresh) return false;
-      return d <= this.range || d <= touchThresh;
-    }catch(e){ errLog('Tower.canTarget error', e); return false; }
-  };
-
-  Tower.prototype.tryFire = function(dt){
-    try{
-      if(this.hp <= 0) return;
-      if(this.cooldown > 0){ this.cooldown -= dt; return; }
-      if(this.kind === 'king'){
-        const teamPrincesses = World.towers.filter(t => t.team === this.team && t.kind === 'princess');
-        if(teamPrincesses.some(p => p.hp > 0)) return;
-      }
-      let best = null, bd = Infinity;
-      for(const u of World.troops){
-        if(u.team === this.team) continue;
-        if(u.hp <= 0) continue;
-        if(!this.canTarget(u)) continue;
-        const d = vdist(this.pos, u.mesh.position);
-        if(d < bd){ bd = d; best = u; }
-      }
-      if(best){
-        spawnProjectile(this.pos.clone(), best, this.damage, this.team);
-        this.cooldown = Math.max(0.02, 1.0 / (this.fireRate || 1.0));
-      }
-    }catch(e){ errLog('Tower.tryFire error', e); }
-  };
-
-  // -------------------- Projectiles --------------------
-  function spawnProjectile(fromVec, targetUnit, power, team){
-    try{
-      const geo = new THREE.SphereGeometry(2.6, 8, 8);
-      const mat = new THREE.MeshBasicMaterial({ color: team === 'player' ? 0x99ffcc : 0xffc0c0 });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.copy(fromVec); mesh.position.y = 20;
-      scene.add(mesh);
-      World.projectiles.push({ mesh, target: targetUnit, power, speed: 320, dead: false, team });
-    }catch(e){ errLog('spawnProjectile error', e); }
-  }
-
-  function updateProjectiles(dt){
-    try{
-      for(const p of World.projectiles){
-        if(p.dead) continue;
-        if(!p.target || p.target.hp <= 0){ p.dead = true; try{ scene.remove(p.mesh); }catch(_){} continue; }
-        const tpos = p.target.mesh ? p.target.mesh.position : p.target.pos;
-        const dx = tpos.x - p.mesh.position.x;
-        const dz = tpos.z - p.mesh.position.z;
-        const d = Math.sqrt(dx*dx + dz*dz);
-        if(d < 4.2){
-          p.target.hp = Math.max(0, p.target.hp - p.power);
-          p.dead = true;
-          spawnImpact(p.mesh.position.clone(), p.team);
-          try{ scene.remove(p.mesh); }catch(_){} 
-        } else {
-          const nx = dx / d, nz = dz / d;
-          const move = p.speed * dt;
-          p.mesh.position.x += nx * move;
-          p.mesh.position.z += nz * move;
-        }
-      }
-      for(let i = World.projectiles.length - 1; i >= 0; --i) if(World.projectiles[i].dead) World.projectiles.splice(i,1);
-    }catch(e){ errLog('updateProjectiles error', e); }
-  }
-
-  function spawnImpact(pos, team){
-    try{
-      const geo = new THREE.PlaneGeometry(8,8);
-      const mat = new THREE.MeshBasicMaterial({ color: team === 'player' ? 0x99ffcc : 0xffc0c0, transparent:true, opacity:0.9, side: THREE.DoubleSide });
-      const mesh = new THREE.Mesh(geo, mat); mesh.rotation.x = -Math.PI/2; mesh.position.copy(pos); mesh.position.y = 6;
-      scene.add(mesh);
-      World.effects.push({ mesh, life: 0.25 });
-    }catch(e){ errLog('spawnImpact error', e); }
-  }
-
-  function updateEffects(dt){
-    try{
-      for(const e of World.effects){
-        e.life -= dt;
-        if(e.mesh && e.mesh.material) e.mesh.material.opacity = Math.max(0, e.life / 0.25);
-        if(e.life <= 0){ try{ scene.remove(e.mesh); }catch(_){} }
-      }
-      for(let i = World.effects.length - 1; i >= 0; --i) if(World.effects[i].life <= 0) World.effects.splice(i,1);
-    }catch(e){ errLog('updateEffects error', e); }
-  }
-
-  // -------------------- Troop class --------------------
-  function Troop(opts){
-    try{
-      this.team = opts.team;
-      this.name = opts.template.name || 'Troop';
-      this.maxHp = opts.template.hp || 200;
-      this.hp = this.maxHp;
-      this.dmg = opts.template.dmg || 24;
-      this.speed = (opts.template.speed || 45) / 60;
-      this.range = (opts.template.range || 10) / 60;
-      this.projectile = !!opts.template.projectile;
-      this.size = opts.template.size || 8;
-      this.path = opts.path.map(p => p.clone());
-      this.waypointIndex = (this.team === 'player') ? 1 : (this.path.length - 2);
-      this.crossedBridge = false;
-      this.mesh = makeTroopMesh(this.team, this.size);
-      this.mesh.position.copy(opts.pos); this.mesh.position.y = this.size / 2;
-      const hpBar = createHealthBar(Math.max(18, this.size*2.2));
-      this.mesh.add(hpBar); hpBar.position.set(0, this.size + 6, 0);
-      this.target = null; this.state = 'moving'; this.attackCooldown = 0;
-      this.id = 'troop-' + Math.random().toString(36).slice(2,9);
-      scene.add(this.mesh); World.troops.push(this);
-    }catch(e){ errLog('Troop ctor error', e); }
-  }
-
-  Troop.prototype.updateVisual = function(){
-    try{
-      const front = this.mesh.children[0].getObjectByName('hpFront');
-      if(front){
-        const width = front.geometry.parameters.width || 24;
-        const pct = clamp(this.hp / this.maxHp, 0, 1);
-        front.scale.x = pct;
-        front.position.x = -( width * (1 - pct) ) / 2;
-      }
-    }catch(e){ errLog('Troop.updateVisual error', e); }
-  };
-
-  Troop.prototype.findTarget = function(){
-    try{
-      let best = null, bd = Infinity;
-      for(const u of World.troops){
-        if(u.team === this.team || u.hp <= 0) continue;
-        const d = vdist(this.mesh.position, u.mesh.position);
-        if(d < bd){ bd = d; best = u; }
-      }
-      if(best) return best;
-      for(const t of World.towers){
-        if(t.team === this.team || t.hp <= 0) continue;
-        const d = vdist(this.mesh.position, t.pos);
-        if(d < bd){ bd = d; best = t; }
-      }
-      return best;
-    }catch(e){ errLog('Troop.findTarget error', e); return null; }
-  };
-
-  Troop.prototype.update = function(dt){
-    try{
-      if(this.hp <= 0) return;
-      if(this.target && this.target.hp <= 0){ this.target = null; this.state = 'moving'; }
-      if(!this.target) this.target = this.findTarget();
-
-      if(this.path && this.path[2]){
-        const postZ = this.path[2].z;
-        if(this.team === 'player'){ if(this.mesh.position.z <= postZ + 1) this.crossedBridge = true; }
-        else { if(this.mesh.position.z >= postZ - 1) this.crossedBridge = true; }
-      }
-
-      // melee vs enemy troops
-      const enemies = World.troops.filter(t => t.team !== this.team && t.hp > 0);
-      for(const e of enemies){
-        const d = vdist(this.mesh.position, e.mesh.position);
-        if(d <= (this.size + e.size) / 2 + 1.2){
-          if(this.attackCooldown <= 0){
-            this.attackCooldown = 1.0;
-            e.hp = Math.max(0, e.hp - this.dmg);
-            spawnImpact(this.mesh.position.clone(), this.team);
-          }
-          return;
-        }
-      }
-
-      // attack towers if touching
-      for(const tw of World.towers){
-        if(tw.team === this.team || tw.hp <= 0) continue;
-        const d = vdist(this.mesh.position, tw.pos);
-        if(d <= (this.size / 2) + 14 + 1.2){
-          if(this.attackCooldown <= 0){
-            this.attackCooldown = 1.0;
-            tw.hp = Math.max(0, tw.hp - this.dmg);
-            spawnImpact(this.mesh.position.clone(), this.team);
-          }
-          return;
-        }
-      }
-
-      // movement
-      if(this.state === 'moving'){
-        if(this.waypointIndex >= this.path.length){
-          if(this.target) this.moveToward(this.target.mesh ? this.target.mesh.position : this.target.pos, dt);
-        } else {
-          const wp = this.path[this.waypointIndex];
-          const dwp = vdist(this.mesh.position, wp);
-          if(dwp < 2.5) this.waypointIndex++;
-          else this.moveToward(wp, dt);
-        }
-      }
-
-      if(this.attackCooldown > 0) this.attackCooldown -= dt;
-    }catch(e){ errLog('Troop.update error', e); }
-  };
-
-  Troop.prototype.moveToward = function(vec, dt){
-    try{
-      const cur = this.mesh.position;
-      const dx = vec.x - cur.x, dz = vec.z - cur.z;
-      const d = Math.sqrt(dx*dx + dz*dz);
-      if(d < 0.001) return;
-      const nx = dx / d, nz = dz / d;
-      const move = Math.min(this.speed * dt * 60, d);
-      this.mesh.position.x += nx * move;
-      this.mesh.position.z += nz * move;
-      this.mesh.position.y = this.size / 2;
-    }catch(e){ errLog('Troop.moveToward error', e); }
-  };
-
-  // -------------------- Game state & AI --------------------
-  const Game = {
-    elixir: 4, elixirMax: 10, elixirRate: 1, paused: false,
-    placementZone: { xMin: -92, xMax: 92, zMin: ARENA_H/2 - 160, zMax: ARENA_H/2 - 30 },
-    deckTemplates: [
-      { name: 'Knight', hp: 420, dmg: 48, speed: 40, range: 8, projectile: false, cost: 3, size: 10 },
-      { name: 'Archer', hp: 200, dmg: 28, speed: 56, range: 120, projectile: true, cost: 3, size: 6 },
-      { name: 'Giant', hp: 1100, dmg: 62, speed: 32, range: 12, projectile: false, cost: 5, size: 14 },
-      { name: 'Hog', hp: 320, dmg: 60, speed: 115, range: 10, projectile: false, cost: 4, size: 10 },
-      { name: 'Minis', hp: 140, dmg: 18, speed: 85, range: 8, projectile: false, cost: 2, size: 6 }
-    ],
-    selectedCard: null,
-    ai: { elixir: 4, spawnIntervalMin: 1.2, spawnIntervalMax: 3.0, lastSpawnAttempt: 0 }
-  };
-
-  function spawnAllTowers(){
-    try{
-      for(const t of World.towers){ try{ scene.remove(t.mesh); scene.remove(t.hpBar); }catch(_){} }
-      World.towers.length = 0;
-      const pLeft = new Tower({ team: 'player', kind: 'princess', pos: new THREE.Vector3(-64, 0, ARENA_H/2 - 92) });
-      const pRight = new Tower({ team: 'player', kind: 'princess', pos: new THREE.Vector3(64, 0, ARENA_H/2 - 92) });
-      const pKing = new Tower({ team: 'player', kind: 'king', pos: new THREE.Vector3(0, 0, ARENA_H/2 - 44) });
-      const eLeft = new Tower({ team: 'enemy', kind: 'princess', pos: new THREE.Vector3(-64, 0, -ARENA_H/2 + 92) });
-      const eRight = new Tower({ team: 'enemy', kind: 'princess', pos: new THREE.Vector3(64, 0, -ARENA_H/2 + 92) });
-      const eKing = new Tower({ team: 'enemy', kind: 'king', pos: new THREE.Vector3(0, 0, -ARENA_H/2 + 44) });
-      World.towers.push(pLeft, pRight, pKing, eLeft, eRight, eKing);
-      for(const t of World.towers) t.updateVisual();
-    }catch(e){ errLog('spawnAllTowers error', e); }
-  }
-
-  function spawnTroopFromCard(card, worldPos){
-    try{
-      if(worldPos.z < Game.placementZone.zMin || worldPos.z > Game.placementZone.zMax ||
-         worldPos.x < Game.placementZone.xMin || worldPos.x > Game.placementZone.xMax){
-        log('Placement outside allowed area'); return;
-      }
-      if(Game.elixir < card.cost){ log('Not enough elixir'); return; }
-      Game.elixir -= card.cost; updateElixirUI();
-      const laneName = worldPos.x < 0 ? 'left' : 'right';
-      const lane = Lanes[laneName];
-      const spawnPos = worldPos.clone(); spawnPos.y = 0;
-      spawnPos.z = clamp(spawnPos.z, Game.placementZone.zMin, Game.placementZone.zMax);
-      const tpl = { ...card };
-      const troop = new Troop({ team: 'player', template: tpl, pos: spawnPos, path: lane });
-      troop.name = tpl.name; troop.maxHp = tpl.hp; troop.hp = tpl.hp; troop.dmg = tpl.dmg; troop.speed = tpl.speed; troop.range = tpl.range; troop.projectile = !!tpl.projectile;
-      log('Player spawned', troop.name, 'at', Math.round(spawnPos.x), Math.round(spawnPos.z));
-    }catch(e){ errLog('spawnTroopFromCard error', e); }
-  }
-
-  function aiTick(dt){
-    try{
-      Game.ai.elixir = clamp(Game.ai.elixir + Game.elixirRate * dt, 0, Game.elixirMax);
-      Game.ai.lastSpawnAttempt += dt;
-      const next = randRange(Game.ai.spawnIntervalMin, Game.ai.spawnIntervalMax);
-      if(Game.ai.lastSpawnAttempt >= next){
-        Game.ai.lastSpawnAttempt = 0;
-        const candidate = Game.deckTemplates[Math.floor(Math.random() * Game.deckTemplates.length)];
-        if(Game.ai.elixir >= candidate.cost){
-          const laneChoice = Math.random() < 0.5 ? 'left' : 'right';
-          const lane = Lanes[laneChoice];
-          const spawnPos = lane[lane.length - 1].clone();
-          spawnPos.x += (Math.random() - 0.5) * 28;
-          aiSpawnTroop(candidate, spawnPos, lane);
-          Game.ai.elixir -= candidate.cost;
-          log('AI spawned', candidate.name, 'on', laneChoice);
-        }
-      }
-    }catch(e){ errLog('aiTick error', e); }
-  }
-
-  function aiSpawnTroop(card, worldPos, path){
-    try{
-      const spawnPos = worldPos.clone(); spawnPos.y = 0;
-      const t = new Troop({ team: 'enemy', template: card, pos: spawnPos, path: path });
-      t.name = card.name; t.maxHp = card.hp; t.hp = card.hp; t.dmg = card.dmg; t.speed = card.speed; t.range = card.range; t.projectile = !!card.projectile;
-    }catch(e){ errLog('aiSpawnTroop error', e); }
-  }
-
-  // -------------------- Screen -> world helper --------------------
-  const raycaster = new THREE.Raycaster();
-  const mouse = new THREE.Vector2();
-  function screenToWorld(x, y){
-    try{
-      const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((x - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((y - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(mouse, camera);
-      const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
-      const p = new THREE.Vector3(); raycaster.ray.intersectPlane(plane, p);
-      return p;
-    }catch(e){ errLog('screenToWorld error', e); return new THREE.Vector3(0, ARENA_H/2, 0); }
-  }
-
-  renderer.domElement.addEventListener('pointerdown', ev => {
-    try{
-      const p = screenToWorld(ev.clientX, ev.clientY);
-      if(Game.selectedCard){
-        spawnTroopFromCard(Game.selectedCard, p);
-        Game.selectedCard = null; highlightSelected(null);
-      }
-    }catch(e){ errLog('pointerdown handler error', e); }
-  });
-
-  // -------------------- Deck UI & Elixir --------------------
-  const deckEl = document.getElementById('deck');
-  function buildDeckUI(){
-    try{
-      deckEl.innerHTML = '';
-      for(const tpl of Game.deckTemplates){
-        const d = document.createElement('div');
-        d.className = 'card';
-        d.innerHTML = `<div style="font-weight:700">${tpl.name}</div><div class="muted">${tpl.cost} elixir</div>`;
-        d.addEventListener('click', () => {
-          if(Game.elixir >= tpl.cost){ Game.selectedCard = tpl; highlightSelected(d); } else log('Not enough elixir');
-        });
-        deckEl.appendChild(d);
-      }
-    }catch(e){ errLog('buildDeckUI error', e); }
-  }
-  function highlightSelected(node){
-    try{
-      Array.from(deckEl.children).forEach(c => c.style.boxShadow = '');
-      if(node) node.style.boxShadow = '0 0 0 4px rgba(50,200,255,0.12)';
-    }catch(e){ errLog('highlightSelected error', e); }
-  }
-  function updateElixirUI(){
-    try{
-      const pct = Math.round((Game.elixir / Game.elixirMax) * 100);
-      document.getElementById('elixirFill').style.width = pct + '%';
-      document.getElementById('elixirText').innerText = 'Elixir: ' + Math.floor(Game.elixir) + ' / ' + Game.elixirMax;
-      Array.from(deckEl.children).forEach((c,i) => {
-        const tpl = Game.deckTemplates[i];
-        if(Game.elixir < tpl.cost) c.classList.add('disabled'); else c.classList.remove('disabled');
-      });
-    }catch(e){ errLog('updateElixirUI error', e); }
-  }
-
-  // -------------------- Cleanup --------------------
-  function cleanupDead(){
-    try{
-      for(let i = World.troops.length - 1; i >= 0; --i){
-        if(World.troops[i].hp <= 0){ try{ scene.remove(World.troops[i].mesh); }catch(_){} World.troops.splice(i,1); }
-      }
-      for(let i = World.projectiles.length - 1; i >= 0; --i){
-        if(World.projectiles[i].dead){ try{ scene.remove(World.projectiles[i].mesh); }catch(_){} World.projectiles.splice(i,1); }
-      }
-    }catch(e){ errLog('cleanupDead error', e); }
-  }
-
-  // -------------------- Main loop (defensive) --------------------
-  let last = now();
-  function animate(){
-    requestAnimationFrame(animate);
-    const t = now();
-    const dt = clamp(t - last, 0, 0.06);
-    last = t;
-
-    try{
-      if(!Game.paused){
-        Game.elixir = clamp(Game.elixir + Game.elixirRate * dt, 0, Game.elixirMax);
-        updateElixirUI();
-
-        try{ aiTick(dt); } catch(e){ errLog('aiTick wrapper', e); }
-
-        for(const tw of World.towers){
-          try{ tw.tryFire(dt); } catch(e){ errLog('tower.tryFire wrapper', e); }
-        }
-
-        try{ updateProjectiles(dt); } catch(e){ errLog('updateProjectiles wrapper', e); }
-
-        for(const u of World.troops){
-          try{ u.update(dt); } catch(e){ errLog('troop.update wrapper', e); }
-        }
-
-        for(const tw of World.towers){
-          try{ tw.updateVisual(); } catch(e){ errLog('tower.updateVisual wrapper', e); }
-        }
-        for(const u of World.troops){
-          try{ u.updateVisual(); } catch(e){ errLog('troop.updateVisual wrapper', e); }
-        }
-        try{ updateEffects(dt); } catch(e){ errLog('updateEffects wrapper', e); }
-
-        try{ cleanupDead(); } catch(e){ errLog('cleanupDead wrapper', e); }
-
-        try{
-          const pKing = World.towers.find(t => t.team === 'player' && t.kind === 'king');
-          const eKing = World.towers.find(t => t.team === 'enemy' && t.kind === 'king');
-          if(pKing && pKing.hp <= 0){ Game.paused = true; log('Enemy wins!'); }
-          if(eKing && eKing.hp <= 0){ Game.paused = true; log('Player wins!'); }
-        }catch(e){ errLog('win-check wrapper', e); }
-      }
-    }catch(e){
-      errLog('main update error', e);
-    } finally {
-      // ALWAYS render the baseline scene
-      try{ controls.update(); renderer.render(scene, camera); } catch(e){ errLog('render error', e); }
-    }
-  }
-
-  // -------------------- Buttons --------------------
-  document.getElementById('btnPause').addEventListener('click', () => {
-    Game.paused = !Game.paused; document.getElementById('btnPause').innerText = Game.paused ? 'Resume' : 'Pause';
-  });
-  document.getElementById('btnStep').addEventListener('click', () => {
-    if(Game.paused){ Game.paused = false; last = now(); setTimeout(()=>{ Game.paused = true; }, 30); }
-  });
-  document.getElementById('btnReset').addEventListener('click', () => {
-    try{
-      for(const t of World.towers){ try{ scene.remove(t.mesh); scene.remove(t.hpBar); }catch(_){} }
-      for(const u of World.troops){ try{ scene.remove(u.mesh); }catch(_){} }
-      for(const p of World.projectiles){ try{ scene.remove(p.mesh); }catch(_){} }
-      for(const e of World.effects){ try{ scene.remove(e.mesh); }catch(_){} }
-      World.troops.length = 0; World.towers.length = 0; World.projectiles.length = 0; World.effects.length = 0;
-      Game.elixir = 4; Game.ai.elixir = 4; updateElixirUI();
-      spawnAllTowers(); buildDeckUI(); Game.selectedCard = null; highlightSelected(null);
-      log('World reset');
-    }catch(e){ errLog('reset handler error', e); }
-  });
-
-  document.getElementById('debugToggle').addEventListener('change', e => { try{ debugGroup.visible = e.target.checked; }catch(err){ errLog('debugToggle error', err); } });
-
-  // -------------------- Init helpers --------------------
-  Game.recomputePlacementZones = function(){ const m = 1.4; const baseW = 170, baseH = 140; const w = baseW * m, h = baseH * m; this.placementZone.xMin = -w/2; this.placementZone.xMax = w/2; this.placementZone.zMin = ARENA_H/2 - h - 10; this.placementZone.zMax = ARENA_H/2 - 30; };
-
-  // -------------------- Deck & UI bootstrap --------------------
-  function buildDeckUIAndBind(){
-    buildDeckUI(); updateElixirUI();
-    window.addEventListener('keydown', (e) => {
-      if(e.key === 'd') debugGroup.visible = !debugGroup.visible;
-      if(e.key === 'r') document.getElementById('btnReset').click();
-    });
-  }
-
-  // expose for debug
-  window.ClashMega = { scene, camera, renderer, World, Game, Lanes, debugGroup };
-
-  // -------------------- Start --------------------
+const debugGroup = new THREE.Group(); debugGroup.visible = false; scene.add(debugGroup);
+function rebuildDebugMarkers(){
   try{
-    Game.recomputePlacementZones();
-    spawnAllTowers();
-    buildDeckUIAndBind();
-    updateElixirUI();
-    animate();
-    log('Full mega rebuild loaded — OrbitControls fixed and defensive loop active. Debug markers off by default.');
+    debugGroup.clear();
+    const preG = new THREE.SphereGeometry(3.4, 12, 12);
+    const preMat = new THREE.MeshBasicMaterial({ color: 0x2ea0ff });
+    const postG = new THREE.SphereGeometry(3.6, 12, 12);
+    const postMat = new THREE.MeshBasicMaterial({ color: 0xff4c4c });
+    for(const side of ['left','right']){
+      const lane = Lanes[side];
+      const pre = new THREE.Mesh(preG, preMat); pre.position.copy(lane[1]); pre.position.y = 4; debugGroup.add(pre);
+      const post = new THREE.Mesh(postG, postMat); post.position.copy(lane[2]); post.position.y = 4; debugGroup.add(post);
+      for(let i=0;i<lane.length;i++){
+        const dot = new THREE.Mesh(new THREE.SphereGeometry(1.6,8,8), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.06 }));
+        dot.position.copy(lane[i]); dot.position.y = 2; debugGroup.add(dot);
+      }
+    }
+  }catch(e){ errLog('rebuildDebugMarkers', e); }
+}
+rebuildDebugMarkers();
+
+/* ------------------- World pools ------------------- */
+const World = { troops: [], towers: [], projectiles: [], effects: [] };
+
+/* ------------------- Texture loader (safe) ------------------- */
+const texLoader = new THREE.TextureLoader();
+let towerDiffuse = null, towerNormal = null, texturesTried = false;
+function tryLoadTowerTextures(){
+  if(texturesTried) return; texturesTried = true;
+  texLoader.load('textures/tower_diffuse.png',
+    tex => { towerDiffuse = tex; towerDiffuse.encoding = THREE.sRGBEncoding; log('tower diffuse loaded'); },
+    undefined,
+    () => { log('tower_diffuse missing — will use color fallback'); }
+  );
+  texLoader.load('textures/tower_normal.png',
+    tex => { towerNormal = tex; log('tower normal loaded'); },
+    undefined,
+    ()=>{}
+  );
+}
+tryLoadTowerTextures();
+
+function towerMaterialFor(team){
+  try{
+    if(towerDiffuse) return new THREE.MeshStandardMaterial({ map: towerDiffuse, normalMap: towerNormal||null, metalness:0.05, roughness:0.6 });
+    const c = team === 'player' ? 0x2f7a47 : 0x7a2f2f;
+    return new THREE.MeshStandardMaterial({ color: c, metalness:0.05, roughness:0.6 });
+  }catch(e){ errLog('towerMaterialFor', e); return new THREE.MeshStandardMaterial({ color:0x999999 }); }
+}
+
+/* ------------------- Visual helpers ------------------- */
+function createHealthBar(width=28){
+  const g = new THREE.Group();
+  const back = new THREE.Mesh(new THREE.PlaneGeometry(width,3), new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.6 }));
+  const front = new THREE.Mesh(new THREE.PlaneGeometry(width-2,2.2), new THREE.MeshBasicMaterial({ color:0x33ff88 }));
+  front.name = 'hpFront'; front.position.z = 0.01; back.add(front); g.add(back); g.position.y = 36;
+  return g;
+}
+
+/* ------------------- Tower class ------------------- */
+function Tower(opts){
+  this.team = opts.team;
+  this.kind = opts.kind; // 'princess' or 'king'
+  this.pos = opts.pos.clone();
+  this.baseHP = this.kind==='king' ? 1900 : 1100;
+  this.hp = this.baseHP;
+  this.baseDamage = this.kind==='king' ? 110 : 55;
+  this.baseRange = this.kind==='king' ? 150 : 120;
+  this.baseFireRate = 1.0;
+  this.damage = this.baseDamage;
+  this.range = this.baseRange;
+  this.fireRate = this.baseFireRate;
+  this.cooldown = 0;
+  try{
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(14,14,34,14), towerMaterialFor(this.team));
+    mesh.castShadow = true; mesh.receiveShadow = true; mesh.position.set(this.pos.x,18,this.pos.z);
+    this.mesh = mesh;
+    this.hpBar = createHealthBar(28); this.hpBar.position.set(this.pos.x,46,this.pos.z);
+    scene.add(this.mesh); scene.add(this.hpBar);
+    this.id = this.team + '-' + this.kind;
+  }catch(e){ errLog('Tower ctor', e); }
+}
+Tower.prototype.updateVisual = function(){
+  try{
+    const front = this.hpBar.children[0].getObjectByName('hpFront');
+    if(front){
+      const pct = clamp(this.hp / this.baseHP, 0, 1);
+      front.scale.x = pct;
+      front.position.x = -((28-2)*(1-pct))/2;
+    }
+    if(this.hp <= 0 && this.mesh && this.mesh.material) this.mesh.material.color.setHex(0x333333);
+  }catch(e){ errLog('Tower.updateVisual', e); }
+};
+// Only target troops that have crossed the post-bridge OR are touching
+Tower.prototype.canTarget = function(candidate){
+  try{
+    if(!candidate || candidate.hp<=0) return false;
+    if(Math.sign(this.pos.z) !== Math.sign(candidate.mesh.position.z)) return false;
+    const d = vdist(this.pos, candidate.mesh.position);
+    const touchThresh = (candidate.size || 8) + 14;
+    if(!candidate.crossedBridge && d > this.range && d > touchThresh) return false;
+    return d <= this.range || d <= touchThresh;
+  }catch(e){ errLog('Tower.canTarget', e); return false; }
+};
+Tower.prototype.tryFire = function(dt){
+  try{
+    if(this.hp<=0) return;
+    if(this.cooldown>0){ this.cooldown -= dt; return; }
+    // king wake rule skipped for simplicity here
+    let best=null, bd=Infinity;
+    for(const u of World.troops){
+      if(u.team === this.team) continue;
+      if(u.hp <= 0) continue;
+      if(!this.canTarget(u)) continue;
+      const d = vdist(this.pos, u.mesh.position);
+      if(d < bd){ bd=d; best=u; }
+    }
+    if(best){ spawnProjectile(this.pos.clone(), best, this.damage, this.team); this.cooldown = Math.max(0.02, 1.0 / (this.fireRate || 1.0)); }
+  }catch(e){ errLog('Tower.tryFire', e); }
+};
+
+/* ------------------- Projectiles ------------------- */
+function spawnProjectile(fromVec, targetUnit, power, team){
+  try{
+    const geo = new THREE.SphereGeometry(2.6, 8, 8);
+    const mat = new THREE.MeshBasicMaterial({ color: team === 'player' ? 0x99ffcc : 0xffc0c0 });
+    const mesh = new THREE.Mesh(geo, mat); mesh.position.copy(fromVec); mesh.position.y = 20;
+    scene.add(mesh);
+    World.projectiles.push({ mesh, target: targetUnit, power, speed: 320, dead:false, team });
+  }catch(e){ errLog('spawnProjectile', e); }
+}
+function updateProjectiles(dt){
+  try{
+    for(const p of World.projectiles){
+      if(p.dead) continue;
+      if(!p.target || p.target.hp <= 0){ p.dead = true; try{ scene.remove(p.mesh); }catch(_){} continue; }
+      const tpos = p.target.mesh ? p.target.mesh.position : p.target.pos;
+      const dx = tpos.x - p.mesh.position.x; const dz = tpos.z - p.mesh.position.z;
+      const d = Math.sqrt(dx*dx + dz*dz);
+      if(d < 4.2){
+        p.target.hp = Math.max(0, p.target.hp - p.power);
+        p.dead = true; spawnImpact(p.mesh.position.clone(), p.team); try{ scene.remove(p.mesh); }catch(_){} 
+      } else {
+        const nx = dx / d, nz = dz / d; const move = p.speed * dt;
+        p.mesh.position.x += nx * move; p.mesh.position.z += nz * move;
+      }
+    }
+    for(let i = World.projectiles.length - 1; i>=0; --i) if(World.projectiles[i].dead) World.projectiles.splice(i,1);
+  }catch(e){ errLog('updateProjectiles', e); }
+}
+
+/* ------------------- Effects ------------------- */
+function spawnImpact(pos, team){
+  try{
+    const geo = new THREE.PlaneGeometry(8,8);
+    const mat = new THREE.MeshBasicMaterial({ color: team==='player'?0x99ffcc:0xffc0c0, transparent:true, opacity:0.9, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(geo, mat); mesh.rotation.x = -Math.PI/2; mesh.position.copy(pos); mesh.position.y = 6;
+    scene.add(mesh); World.effects.push({ mesh, life: 0.22 });
+  }catch(e){ errLog('spawnImpact', e); }
+}
+function updateEffects(dt){
+  try{
+    for(const e of World.effects){ e.life -= dt; if(e.mesh && e.mesh.material) e.mesh.material.opacity = Math.max(0, e.life/0.22); if(e.life<=0){ try{ scene.remove(e.mesh); }catch(_){} } }
+    for(let i = World.effects.length -1; i>=0; --i) if(World.effects[i].life<=0) World.effects.splice(i,1);
+  }catch(e){ errLog('updateEffects', e); }
+}
+
+/* ------------------- Troop class & AI ------------------- */
+function Troop(opts){
+  try{
+    this.team = opts.team; // 'player' or 'enemy'
+    this.name = opts.template.name || 'Troop';
+    this.maxHp = opts.template.hp || 200; this.hp = this.maxHp;
+    this.dmg = opts.template.dmg || 24; this.speed = (opts.template.speed || 45) / 60;
+    this.range = (opts.template.range || 10) / 60; this.projectile = !!opts.template.projectile;
+    this.size = opts.template.size || 8;
+    this.path = opts.path.map(p=>p.clone());
+    this.waypointIndex = (this.team === 'player') ? 1 : (this.path.length - 2);
+    this.crossedBridge = false;
+    this.mesh = makeTroopMesh(this.team, this.size);
+    this.mesh.position.copy(opts.pos); this.mesh.position.y = this.size/2;
+    const hp = createHealthBar(Math.max(18, this.size*2.2)); this.mesh.add(hp); hp.position.set(0, this.size+6, 0);
+    this.target = null; this.state='moving'; this.attackCooldown = 0; this.id = 'troop-'+Math.random().toString(36).slice(2,9);
+    scene.add(this.mesh); World.troops.push(this);
+  }catch(e){ errLog('Troop ctor', e); }
+}
+function makeTroopMesh(team,size){
+  const color = team==='player' ? 0xffe0b0 : 0xffb0b0;
+  const geo = new THREE.BoxGeometry(size, size, size);
+  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.6 });
+  const mesh = new THREE.Mesh(geo, mat); mesh.castShadow=true; mesh.receiveShadow=true; return mesh;
+}
+Troop.prototype.updateVisual = function(){
+  try{
+    const front = this.mesh.children[0].getObjectByName('hpFront');
+    if(front){ const width = front.geometry.parameters.width || 24; const pct = clamp(this.hp/this.maxHp,0,1); front.scale.x = pct; front.position.x = -(width*(1-pct))/2; }
+  }catch(e){ errLog('Troop.updateVisual', e); }
+};
+Troop.prototype.findTarget = function(){
+  try{
+    // prioritize nearest enemy troop, else nearest enemy tower
+    let best=null, bd=Infinity;
+    for(const u of World.troops){ if(u.team===this.team || u.hp<=0) continue; const d=vdist(this.mesh.position,u.mesh.position); if(d<bd){bd=d;best=u;} }
+    if(best) return best;
+    for(const t of World.towers){ if(t.team===this.team || t.hp<=0) continue; const d=vdist(this.mesh.position,t.pos); if(d<bd){bd=d;best=t;} }
+    return best;
+  }catch(e){ errLog('Troop.findTarget', e); return null; }
+};
+Troop.prototype.update = function(dt){
+  try{
+    if(this.hp<=0) return;
+    if(this.target && this.target.hp<=0){ this.target=null; this.state='moving'; }
+    if(!this.target) this.target = this.findTarget();
+
+    // update crossedBridge flag by comparing to post-bridge waypoint z (index 2)
+    if(this.path && this.path[2]){
+      const postZ = this.path[2].z;
+      if(this.team==='player'){ if(this.mesh.position.z <= postZ + 1) this.crossedBridge = true; }
+      else { if(this.mesh.position.z >= postZ - 1) this.crossedBridge = true; }
+    }
+
+    // check nearby enemy troops (proximity)
+    const enemies = World.troops.filter(t => t.team !== this.team && t.hp > 0);
+    for(const e of enemies){
+      const d = vdist(this.mesh.position, e.mesh.position);
+      if(d <= (this.size + e.size)/2 + 1.2){
+        if(this.attackCooldown <= 0){ this.attackCooldown = 1.0; e.hp = Math.max(0, e.hp - this.dmg); spawnImpact(this.mesh.position.clone(), this.team); }
+        return;
+      }
+    }
+
+    // attack towers if touching
+    for(const tw of World.towers){
+      if(tw.team === this.team || tw.hp <= 0) continue;
+      const d = vdist(this.mesh.position, tw.pos);
+      if(d <= (this.size/2) + 14 + 1.2){
+        if(this.attackCooldown <= 0){ this.attackCooldown = 1.0; tw.hp = Math.max(0, tw.hp - this.dmg); spawnImpact(this.mesh.position.clone(), this.team); }
+        return;
+      }
+    }
+
+    // movement along waypoints/path
+    if(this.state === 'moving'){
+      if(this.waypointIndex >= this.path.length){
+        if(this.target) this.moveToward(this.target.mesh ? this.target.mesh.position : this.target.pos, dt);
+      } else {
+        const wp = this.path[this.waypointIndex];
+        const dwp = vdist(this.mesh.position, wp);
+        if(dwp < 2.5) this.waypointIndex++;
+        else this.moveToward(wp, dt);
+      }
+    }
+
+    if(this.attackCooldown > 0) this.attackCooldown -= dt;
+  }catch(e){ errLog('Troop.update', e); }
+};
+Troop.prototype.moveToward = function(vec, dt){
+  try{
+    const cur = this.mesh.position; const dx = vec.x - cur.x, dz = vec.z - cur.z; const d = Math.sqrt(dx*dx + dz*dz);
+    if(d < 0.001) return;
+    const nx = dx/d, nz = dz/d; const move = Math.min(this.speed * dt * 60, d);
+    this.mesh.position.x += nx * move; this.mesh.position.z += nz * move; this.mesh.position.y = this.size/2;
+  }catch(e){ errLog('Troop.moveToward', e); }
+};
+
+/* ------------------- Game state & UI ------------------- */
+const Game = {
+  elixir: 4, elixirMax: 10, elixirRate: 1, paused: false,
+  placementZone: { xMin:-100, xMax:100, zMin: ARENA_H/2 - 160, zMax: ARENA_H/2 - 30 },
+  deckTemplates: [
+    { name:'Knight', hp:420, dmg:48, speed:40, range:8, projectile:false, cost:3, size:10 },
+    { name:'Archer', hp:200, dmg:28, speed:56, range:120, projectile:true, cost:3, size:6 },
+    { name:'Giant', hp:1100, dmg:62, speed:32, range:12, projectile:false, cost:5, size:14 },
+    { name:'Hog', hp:320, dmg:60, speed:115, range:10, projectile:false, cost:4, size:10 },
+    { name:'Minis', hp:140, dmg:18, speed:85, range:8, projectile:false, cost:2, size:6 }
+  ],
+  selectedCard: null,
+  ai: { elixir:4, spawnIntervalMin: 1.2, spawnIntervalMax: 3.0, lastSpawnAttempt:0 }
+};
+
+/* ------------------- Spawn towers (player + enemy) ------------------- */
+function spawnAllTowers(){
+  try{
+    for(const t of World.towers){ try{ scene.remove(t.mesh); scene.remove(t.hpBar); }catch(_){} }
+    World.towers.length = 0;
+    const pL = new Tower({team:'player', kind:'princess', pos: new THREE.Vector3(-64,0, ARENA_H/2 - 108)});
+    const pR = new Tower({team:'player', kind:'princess', pos: new THREE.Vector3(64,0, ARENA_H/2 - 108)});
+    const pK = new Tower({team:'player', kind:'king', pos: new THREE.Vector3(0,0, ARENA_H/2 - 44)});
+    const eL = new Tower({team:'enemy', kind:'princess', pos: new THREE.Vector3(-64,0, -ARENA_H/2 + 108)});
+    const eR = new Tower({team:'enemy', kind:'princess', pos: new THREE.Vector3(64,0, -ARENA_H/2 + 108)});
+    const eK = new Tower({team:'enemy', kind:'king', pos: new THREE.Vector3(0,0, -ARENA_H/2 + 44)});
+    World.towers.push(pL,pR,pK,eL,eR,eK);
+    for(const t of World.towers) t.updateVisual();
+  }catch(e){ errLog('spawnAllTowers', e); }
+}
+
+/* ------------------- Spawn troop from card (placement validation) ------------------- */
+function spawnTroopFromCard(card, worldPos){
+  try{
+    if(worldPos.z < Game.placementZone.zMin || worldPos.z > Game.placementZone.zMax || worldPos.x < Game.placementZone.xMin || worldPos.x > Game.placementZone.xMax){
+      log('Placement outside allowed area'); return;
+    }
+    if(Game.elixir < card.cost){ log('Not enough elixir'); return; }
+    Game.elixir -= card.cost; updateElixirUI();
+    const laneName = worldPos.x < 0 ? 'left' : 'right'; const lane = Lanes[laneName];
+    const spawnPos = worldPos.clone(); spawnPos.y = 0;
+    spawnPos.z = clamp(spawnPos.z, Game.placementZone.zMin, Game.placementZone.zMax);
+    const tpl = {...card};
+    const troop = new Troop({ team:'player', template: tpl, pos: spawnPos, path: lane });
+    troop.name = tpl.name;
+    troop.maxHp = tpl.hp; troop.hp = tpl.hp; troop.dmg = tpl.dmg; troop.speed = tpl.speed; troop.range = tpl.range; troop.projectile = !!tpl.projectile;
+    log('Player spawned', troop.name, 'at', Math.round(spawnPos.x), Math.round(spawnPos.z));
+  }catch(e){ errLog('spawnTroopFromCard', e); }
+}
+
+/* ------------------- AI spawn ------------------- */
+function aiTick(dt){
+  try{
+    Game.ai.elixir = clamp(Game.ai.elixir + Game.elixirRate * dt, 0, Game.elixirMax);
+    Game.ai.lastSpawnAttempt += dt;
+    const next = randRange(Game.ai.spawnIntervalMin, Game.ai.spawnIntervalMax);
+    if(Game.ai.lastSpawnAttempt >= next){
+      Game.ai.lastSpawnAttempt = 0;
+      const candidate = Game.deckTemplates[Math.floor(Math.random() * Game.deckTemplates.length)];
+      if(Game.ai.elixir >= candidate.cost){
+        const laneChoice = Math.random() < 0.5 ? 'left' : 'right';
+        const lane = Lanes[laneChoice];
+        const spawnPos = lane[lane.length - 1].clone();
+        spawnPos.x += (Math.random() - 0.5) * 28;
+        aiSpawnTroop(candidate, spawnPos, lane);
+        Game.ai.elixir -= candidate.cost;
+        log('AI spawned', candidate.name, 'on', laneChoice);
+      }
+    }
+  }catch(e){ errLog('aiTick', e); }
+}
+function aiSpawnTroop(card, worldPos, path){
+  try{
+    const spawnPos = worldPos.clone(); spawnPos.y = 0;
+    const t = new Troop({ team: 'enemy', template: card, pos: spawnPos, path: path });
+    t.name = card.name; t.maxHp = card.hp; t.hp = card.hp; t.dmg = card.dmg; t.speed = card.speed; t.range = card.range; t.projectile = !!card.projectile;
+  }catch(e){ errLog('aiSpawnTroop', e); }
+}
+
+/* ------------------- Screen->world (placement) ------------------- */
+const raycaster = new THREE.Raycaster(); const mouse = new THREE.Vector2();
+function screenToWorld(x,y){
+  try{
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((x - rect.left)/rect.width) * 2 - 1;
+    mouse.y = -((y - rect.top)/rect.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+    const p = new THREE.Vector3(); raycaster.ray.intersectPlane(plane, p);
+    return p;
+  }catch(e){ errLog('screenToWorld', e); return new THREE.Vector3(0, ARENA_H/2, 0); }
+}
+renderer.domElement.addEventListener('pointerdown', ev=>{
+  try{
+    const p = screenToWorld(ev.clientX, ev.clientY);
+    if(Game.selectedCard){
+      spawnTroopFromCard(Game.selectedCard, p);
+      Game.selectedCard = null; highlightSelected(null);
+    }
+  }catch(e){ errLog('pointerdown', e); }
+});
+
+/* ------------------- Deck UI + Elixir bars ------------------- */
+const deckEl = document.getElementById('deck');
+function buildDeckUI(){
+  try{
+    deckEl.innerHTML = '';
+    for(const tpl of Game.deckTemplates){
+      const d = document.createElement('div'); d.className = 'card';
+      d.innerHTML = `<div style="font-weight:700">${tpl.name}</div><div class="muted">${tpl.cost} elixir</div>`;
+      d.addEventListener('click', ()=>{ if(Game.elixir >= tpl.cost){ Game.selectedCard = tpl; highlightSelected(d); } else log('Not enough elixir'); });
+      deckEl.appendChild(d);
+    }
+  }catch(e){ errLog('buildDeckUI', e); }
+}
+function highlightSelected(node){
+  try{ Array.from(deckEl.children).forEach(c=>c.style.boxShadow=''); if(node) node.style.boxShadow = '0 0 0 4px rgba(50,200,255,0.12)'; }catch(e){ errLog('highlightSelected', e); }
+}
+function updateElixirUI(){
+  try{
+    const pct = Math.round((Game.elixir / Game.elixirMax) * 100);
+    document.getElementById('elixirFill').style.width = pct + '%';
+    document.getElementById('elixirText').innerText = 'Elixir: ' + Math.floor(Game.elixir) + ' / ' + Game.elixirMax;
+    Array.from(deckEl.children).forEach((c,i)=>{ const tpl = Game.deckTemplates[i]; if(Game.elixir < tpl.cost) c.classList.add('disabled'); else c.classList.remove('disabled'); });
+  }catch(e){ errLog('updateElixirUI', e); }
+}
+
+/* ------------------- Cleanup ------------------- */
+function cleanupDead(){
+  try{
+    for(let i = World.troops.length - 1; i >= 0; --i){
+      if(World.troops[i].hp <= 0){ try{ scene.remove(World.troops[i].mesh); }catch(_){} World.troops.splice(i,1); }
+    }
+    for(let i = World.projectiles.length - 1; i >= 0; --i){
+      if(World.projectiles[i].dead){ try{ scene.remove(World.projectiles[i].mesh); }catch(_){} World.projectiles.splice(i,1); }
+    }
+  }catch(e){ errLog('cleanupDead', e); }
+}
+
+/* ------------------- Main loop (defensive) ------------------- */
+let last = now();
+function animate(){
+  requestAnimationFrame(animate);
+  const t = now(); const dt = clamp(t - last, 0, 0.06); last = t;
+
+  try{
+    if(!Game.paused){
+      Game.elixir = clamp(Game.elixir + Game.elixirRate * dt, 0, Game.elixirMax);
+      updateElixirUI();
+
+      try{ aiTick(dt); } catch(e){ errLog('aiTick wrapper', e); }
+
+      // towers
+      for(const tw of World.towers) { try{ tw.tryFire(dt); } catch(e){ errLog('tower.tryFire wrapper', e); } }
+      // projectiles
+      try{ updateProjectiles(dt); } catch(e){ errLog('updateProjectiles wrapper', e); }
+      // troops update
+      for(const u of World.troops){ try{ u.update(dt); } catch(e){ errLog('troop.update wrapper', e); } }
+      // visuals & effects
+      for(const tw of World.towers){ try{ tw.updateVisual(); } catch(e){ errLog('tower.updateVisual wrapper', e); } }
+      for(const u of World.troops){ try{ u.updateVisual(); } catch(e){ errLog('troop.updateVisual wrapper', e); } }
+      try{ updateEffects(dt); } catch(e){ errLog('updateEffects wrapper', e); }
+      try{ cleanupDead(); } catch(e){ errLog('cleanupDead wrapper', e); }
+
+      // win check
+      try{
+        const pKing = World.towers.find(t=>t.team==='player'&&t.kind==='king');
+        const eKing = World.towers.find(t=>t.team==='enemy'&&t.kind==='king');
+        if(pKing && pKing.hp<=0){ Game.paused=true; log('Enemy wins!'); }
+        if(eKing && eKing.hp<=0){ Game.paused=true; log('Player wins!'); }
+      }catch(e){ errLog('win-check', e); }
+    }
   }catch(e){
-    errLog('startup error', e);
-    try{ renderer.render(scene, camera); } catch(e2){ errLog('startup fallback render error', e2); }
+    errLog('main update error', e);
+  } finally {
+    try{ controls.update(); renderer.render(scene, camera); }catch(e){ errLog('render error', e); }
   }
-  </script>
+}
+
+/* ------------------- Buttons ------------------- */
+document.getElementById('btnPause').addEventListener('click', ()=>{ Game.paused = !Game.paused; document.getElementById('btnPause').innerText = Game.paused ? 'Resume' : 'Pause'; });
+document.getElementById('btnStep').addEventListener('click', ()=>{ if(Game.paused){ Game.paused=false; last=now(); setTimeout(()=>{ Game.paused=true; }, 30); }});
+document.getElementById('btnReset').addEventListener('click', ()=>{
+  try{
+    for(const t of World.towers){ try{ scene.remove(t.mesh); scene.remove(t.hpBar); }catch(_){} }
+    for(const u of World.troops){ try{ scene.remove(u.mesh); }catch(_){} }
+    for(const p of World.projectiles){ try{ scene.remove(p.mesh); }catch(_){} }
+    for(const e of World.effects){ try{ scene.remove(e.mesh); }catch(_){} }
+    World.troops.length = 0; World.towers.length = 0; World.projectiles.length = 0; World.effects.length = 0;
+    Game.elixir = 4; Game.ai.elixir = 4; updateElixirUI();
+    spawnAllTowers(); buildDeckUI(); Game.selectedCard = null; highlightSelected(null);
+    log('World reset');
+  }catch(e){ errLog('reset handler', e); }
+});
+document.getElementById('debugToggle').addEventListener('change', e=>{ try{ debugGroup.visible = e.target.checked; }catch(err){ errLog('debugToggle', err); } });
+
+/* ------------------- Init helpers ------------------- */
+Game.recomputePlacementZones = function(){ const m=1.4; const baseW=170, baseH=140; const w=baseW*m, h=baseH*m; this.placementZone.xMin=-w/2; this.placementZone.xMax=w/2; this.placementZone.zMin=ARENA_H/2 - h - 10; this.placementZone.zMax = ARENA_H/2 - 30; };
+
+/* ------------------- Expose debug ------------------- */
+window.ClashMega = { scene, camera, renderer, World, Game, Lanes, debugGroup };
+
+/* ------------------- Startup ------------------- */
+try{
+  Game.recomputePlacementZones();
+  spawnAllTowers();
+  buildDeckUI();
+  updateElixirUI();
+  animate();
+  log('Mega all-features build loaded — bright arena, improved troops, towers, elixir & deck active.');
+} catch(e){
+  errLog('startup', e);
+  try{ renderer.render(scene, camera); } catch(e2){ errLog('startup fallback render', e2); }
+}
+</script>
 </body>
 </html>
