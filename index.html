@@ -1,36 +1,41 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Clash Royale — MEGA 3D Defensive Rebuild</title>
-<style>
-  html,body{height:100%;margin:0;background:#071019;color:#e6eef6;font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial}
-  #canvasHolder{position:absolute;left:0;top:0;right:420px;bottom:0}
-  #ui{position:absolute;right:12px;top:12px;width:404px;background:linear-gradient(180deg, rgba(6,12,16,0.96), rgba(3,6,8,0.92)); padding:14px; border-radius:10px; box-shadow:0 20px 40px rgba(0,0,0,0.6); z-index:40}
-  .row{display:flex;gap:8px;align-items:center}
-  .btn{padding:8px 10px;border-radius:8px;background:#0b2b2a;border:1px solid rgba(255,255,255,0.03);color:#dff7ff;cursor:pointer}
-  label{display:block;font-size:13px;color:#9fb3bf;margin-top:10px}
-  .muted{color:#9fb3bf;font-size:12px}
-  .deck{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-  .card{width:86px;height:104px;background:#e8eedc;color:#082;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;cursor:pointer}
-  .card.disabled{opacity:0.4;pointer-events:none}
-  #elixirBar{height:18px;background:#042;border-radius:9px;margin-top:8px;overflow:hidden}
-  #elixirFill{height:100%;width:0%;background:linear-gradient(180deg,#ffe26b,#ffc83a)}
-  #log{margin-top:10px;height:190px;overflow:auto;background:#021016;padding:8px;border-radius:6px;font-family:monospace;font-size:12px}
-  footer{position:absolute;right:12px;bottom:12px;color:#789;font-size:12px}
-  .small{font-size:12px;color:#9fb3bf}
-  .mutedTiny{font-size:11px;color:#7f9ca8}
-  @media (max-width:1200px){ #canvasHolder{right:320px} #ui{width:320px} .card{width:70px;height:90px} }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Clash Royale — MEGA 3D Full (OrbitControls fix + defensive)</title>
+  <style>
+    html,body{height:100%;margin:0;background:#071019;color:#e6eef6;font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial}
+    #canvasHolder{position:absolute;left:0;top:0;right:420px;bottom:0}
+    #ui{position:absolute;right:12px;top:12px;width:404px;background:linear-gradient(180deg, rgba(6,12,16,0.96), rgba(3,6,8,0.92)); padding:14px; border-radius:10px; box-shadow:0 20px 40px rgba(0,0,0,0.6); z-index:40}
+    .row{display:flex;gap:8px;align-items:center}
+    .btn{padding:8px 10px;border-radius:8px;background:#0b2b2a;border:1px solid rgba(255,255,255,0.03);color:#dff7ff;cursor:pointer}
+    label{display:block;font-size:13px;color:#9fb3bf;margin-top:10px}
+    .muted{color:#9fb3bf;font-size:12px}
+    .deck{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+    .card{width:86px;height:104px;background:#e8eedc;color:#082;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;cursor:pointer}
+    .card.disabled{opacity:0.4;pointer-events:none}
+    #elixirBar{height:18px;background:#042;border-radius:9px;margin-top:8px;overflow:hidden}
+    #elixirFill{height:100%;width:0%;background:linear-gradient(180deg,#ffe26b,#ffc83a)}
+    #log{margin-top:10px;height:190px;overflow:auto;background:#021016;padding:8px;border-radius:6px;font-family:monospace;font-size:12px}
+    footer{position:absolute;right:12px;bottom:12px;color:#789;font-size:12px}
+    .small{font-size:12px;color:#9fb3bf}
+    .mutedTiny{font-size:11px;color:#7f9ca8}
+    @media (max-width:1200px){ #canvasHolder{right:320px} #ui{width:320px} .card{width:70px;height:90px} }
+  </style>
+
+  <!-- Use a Three.js version that still provides the non-module OrbitControls helper -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
+  <!-- Legacy non-module controls so `new THREE.OrbitControls(...)` works -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
   <div id="canvasHolder"></div>
 
   <div id="ui">
     <div style="display:flex;justify-content:space-between;align-items:center">
-      <strong>CLASH — MEGA 3D (Defensive)</strong>
-      <div class="muted">Resilient build</div>
+      <strong>CLASH — MEGA 3D (Full)</strong>
+      <div class="muted">OrbitControls fixed · Defensive loop</div>
     </div>
 
     <div class="row" style="margin-top:10px">
@@ -45,32 +50,32 @@
     <div class="muted" id="elixirText">Elixir: 0 / 10</div>
 
     <div class="deck" id="deck"></div>
-    <div class="mutedTiny" style="margin-top:8px">Click a card, then click anywhere on your side of the arena to deploy.</div>
+    <div class="mutedTiny" style="margin-top:8px">Click a card, then click anywhere on your side to deploy.</div>
 
     <label class="muted" style="margin-top:12px">Notes</label>
-    <div class="mutedTiny">Put tower textures into <code>textures/tower_diffuse.png</code> and <code>textures/tower_normal.png</code> (optional). Scene falls back to colored materials otherwise.</div>
+    <div class="mutedTiny">Drop tower textures into <code>textures/tower_diffuse.png</code> and <code>textures/tower_normal.png</code> (optional). The scene will fallback to color materials if missing.</div>
 
     <div id="log"></div>
   </div>
 
   <footer>Save as <code>index.html</code></footer>
 
-  <!-- Three.js and OrbitControls from CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
-
   <script>
   /**************************************************************************
-   * Clash Royale — MEGA 3D Defensive Rebuild
-   * - Full single-file playable demo
-   * - Defensive error handling: arena always renders, logic wrapped in try/catch
-   * - Bridge-aligned waypoints, troop/tower combat, projectiles, UI
+   * Full Mega Rebuild (with OrbitControls legacy fix and defensive wrappers)
    *
-   * If errors occur, they will be printed in the on-screen log and console,
-   * and the renderer will keep drawing the baseline arena.
+   * - Uses three@0.154.0 + examples/js/controls/OrbitControls.js to keep
+   *   `new THREE.OrbitControls(camera, dom)` working (fixes the "OrbitControls
+   *   is not a constructor" error you saw).
+   * - Wraps game updates in try/catch so the arena always renders.
+   * - All gameplay: lane waypoints aligned to bridge entrances, troop/tower
+   *   combat, projectiles, healthbars, elixir/deck UI, debug toggle.
+   *
+   * If anything still goes black, open DevTools Console and paste the first
+   * red error lines back to me.
    **************************************************************************/
 
-  // -------------------- Utilities --------------------
+  // -------------------- Small helpers --------------------
   const logEl = document.getElementById('log');
   function log(...args){
     const s = new Date().toLocaleTimeString() + '  ' + args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
@@ -88,108 +93,88 @@
   function randRange(a,b){ return a + Math.random()*(b-a); }
   function now(){ return performance.now() / 1000; }
 
-  // -------------------- Renderer, Camera, Controls (created once) --------------------
-  const holder = document.getElementById('canvasHolder');
-  const WIDTH = Math.max(1100, window.innerWidth - 440);
-  const HEIGHT = window.innerHeight;
+  // -------------------- Renderer / Camera / Controls --------------------
+  const canvasHolder = document.getElementById('canvasHolder');
+  const W = Math.max(1100, window.innerWidth - 440);
+  const H = window.innerHeight;
+
+  // Create scene (baseline sky so it's never black)
   const scene = new THREE.Scene();
-  // Baseline sky color to guarantee visibility
   scene.background = new THREE.Color(0x86c0d8);
   scene.fog = new THREE.FogExp2(0x071019, 0.0022);
 
-  const camera = new THREE.PerspectiveCamera(50, WIDTH/HEIGHT, 0.1, 2000);
+  const camera = new THREE.PerspectiveCamera(50, W/H, 0.1, 2000);
   camera.position.set(0, 180, 360);
   camera.lookAt(0, 12, 0);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(WIDTH, HEIGHT);
+  renderer.setSize(W, H);
   renderer.setPixelRatio(window.devicePixelRatio || 1);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  holder.appendChild(renderer.domElement);
+  canvasHolder.appendChild(renderer.domElement);
 
-  const controls = new THREE.OrbitControls(camera, renderer.domElement);
-  controls.target.set(0, 12, 0);
-  controls.enablePan = false;
-  controls.enableDamping = true;
-  controls.minDistance = 120;
-  controls.maxDistance = 520;
-  controls.update();
+  // OrbitControls legacy (loaded via script tag) -> available as THREE.OrbitControls
+  let controls;
+  try {
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 12, 0);
+    controls.enablePan = false;
+    controls.enableDamping = true;
+    controls.minDistance = 120;
+    controls.maxDistance = 520;
+    controls.update();
+  } catch(e) {
+    errLog('OrbitControls init failed', e);
+    // fallback: no controls, camera remains fixed
+    controls = { update: function(){} };
+  }
 
   window.addEventListener('resize', () => {
     const w = Math.max(900, window.innerWidth - 440);
     const h = window.innerHeight;
     renderer.setSize(w, h);
-    camera.aspect = w/h;
-    camera.updateProjectionMatrix();
+    camera.aspect = w/h; camera.updateProjectionMatrix();
   });
 
   // -------------------- Lights --------------------
   const hemi = new THREE.HemisphereLight(0xbbdffb, 0x080820, 0.6);
   scene.add(hemi);
-
   const sun = new THREE.DirectionalLight(0xffffff, 0.95);
   sun.position.set(120, 260, 90);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.camera.near = 10;
   sun.shadow.camera.far = 900;
-  sun.shadow.camera.left = -400;
-  sun.shadow.camera.right = 400;
-  sun.shadow.camera.top = 400;
-  sun.shadow.camera.bottom = -400;
+  sun.shadow.camera.left = -400; sun.shadow.camera.right = 400; sun.shadow.camera.top = 400; sun.shadow.camera.bottom = -400;
   scene.add(sun);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.12); scene.add(ambient);
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.12);
-  scene.add(ambient);
-
-  // -------------------- Arena geometry (baseline locked) --------------------
+  // -------------------- Arena geometry --------------------
   const ARENA_W = 300, ARENA_H = 420, RIVER_H = 54, BRIDGE_W = 60;
-  const arenaGroup = new THREE.Group();
-  scene.add(arenaGroup);
+  const arenaGroup = new THREE.Group(); scene.add(arenaGroup);
 
-  // ground plane
-  const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x163f2e, roughness: 0.95 });
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_W, ARENA_H), groundMaterial);
-  ground.rotation.x = -Math.PI/2;
-  ground.receiveShadow = true;
-  arenaGroup.add(ground);
+  const groundMat = new THREE.MeshStandardMaterial({ color: 0x163f2e, roughness: 0.95 });
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_W, ARENA_H), groundMat); ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; arenaGroup.add(ground);
 
-  // river plane
-  const riverMaterial = new THREE.MeshStandardMaterial({ color: 0x1e6b88, metalness: 0.08, roughness: 0.5 });
-  const river = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_W, RIVER_H), riverMaterial);
-  river.rotation.x = -Math.PI/2;
-  river.position.y = 0.02;
-  river.receiveShadow = true;
-  arenaGroup.add(river);
+  const riverMat = new THREE.MeshStandardMaterial({ color: 0x1e6b88, metalness: 0.08, roughness: 0.5 });
+  const river = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_W, RIVER_H), riverMat); river.rotation.x = -Math.PI/2; river.position.y = 0.02; river.receiveShadow = true; arenaGroup.add(river);
 
-  // two bridges - visually anchored
   const bridgeGeom = new THREE.BoxGeometry(BRIDGE_W, 2, 120);
   const bridgeMat = new THREE.MeshStandardMaterial({ color: 0x7d5a34, roughness: 0.6 });
-  const bridgeLeft = new THREE.Mesh(bridgeGeom, bridgeMat);
-  bridgeLeft.position.set(-64, 0.5, 0);
-  bridgeLeft.receiveShadow = bridgeLeft.castShadow = true;
-  arenaGroup.add(bridgeLeft);
+  const bridgeLeft = new THREE.Mesh(bridgeGeom, bridgeMat); bridgeLeft.position.set(-64, 0.5, 0); bridgeLeft.receiveShadow = bridgeLeft.castShadow = true; arenaGroup.add(bridgeLeft);
+  const bridgeRight = new THREE.Mesh(bridgeGeom, bridgeMat); bridgeRight.position.set(64, 0.5, 0); bridgeRight.receiveShadow = bridgeRight.castShadow = true; arenaGroup.add(bridgeRight);
 
-  const bridgeRight = new THREE.Mesh(bridgeGeom, bridgeMat);
-  bridgeRight.position.set(64, 0.5, 0);
-  bridgeRight.receiveShadow = bridgeRight.castShadow = true;
-  arenaGroup.add(bridgeRight);
-
-  // arena decorative edges
   const edgeMat = new THREE.MeshStandardMaterial({ color: 0x0c2520, roughness: 0.95 });
-  const edge1 = new THREE.Mesh(new THREE.BoxGeometry(ARENA_W + 24, 8, 20), edgeMat);
-  edge1.position.set(0, 4, ARENA_H/2 + 12);
-  edge1.receiveShadow = true;
-  scene.add(edge1);
+  const edge1 = new THREE.Mesh(new THREE.BoxGeometry(ARENA_W + 24, 8, 20), edgeMat); edge1.position.set(0, 4, ARENA_H/2 + 12); edge1.receiveShadow = true; scene.add(edge1);
   const edge2 = edge1.clone(); edge2.position.set(0, 4, -ARENA_H/2 - 12); scene.add(edge2);
 
-  // -------------------- Waypoints aligned to bridge entrances --------------------
+  // -------------------- Waypoints (bridge-aligned) --------------------
   const Lanes = {
     left: [
       new THREE.Vector3(-64, 0, ARENA_H/2 - 46),
       new THREE.Vector3(-64, 0, 52),
-      new THREE.Vector3(-64, 0, 0),  // post-bridge (on bridge entrance)
+      new THREE.Vector3(-64, 0, 0),   // post-bridge aligned on bridge entrance
       new THREE.Vector3(-64, 0, -52),
       new THREE.Vector3(-64, 0, -ARENA_H/2 + 46)
     ],
@@ -202,7 +187,7 @@
     ]
   };
 
-  // debug markers group (hidden by default) - rebuildable
+  // debug markers
   const debugGroup = new THREE.Group(); debugGroup.visible = false; scene.add(debugGroup);
   function rebuildDebugMarkers(){
     try{
@@ -215,7 +200,10 @@
         const lane = Lanes[side];
         const pre = new THREE.Mesh(preG, preMat); pre.position.copy(lane[1]); pre.position.y = 4; debugGroup.add(pre);
         const post = new THREE.Mesh(postG, postMat); post.position.copy(lane[2]); post.position.y = 4; debugGroup.add(post);
-        for(let i=0;i<lane.length;i++){ const dot = new THREE.Mesh(new THREE.SphereGeometry(1.6,8,8), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.06 })); dot.position.copy(lane[i]); dot.position.y = 2; debugGroup.add(dot); }
+        for(let i=0;i<lane.length;i++){
+          const dot = new THREE.Mesh(new THREE.SphereGeometry(1.6,8,8), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.06 }));
+          dot.position.copy(lane[i]); dot.position.y = 2; debugGroup.add(dot);
+        }
       }
     }catch(e){ errLog('rebuildDebugMarkers error', e); }
   }
@@ -431,8 +419,7 @@
       this.waypointIndex = (this.team === 'player') ? 1 : (this.path.length - 2);
       this.crossedBridge = false;
       this.mesh = makeTroopMesh(this.team, this.size);
-      this.mesh.position.copy(opts.pos);
-      this.mesh.position.y = this.size / 2;
+      this.mesh.position.copy(opts.pos); this.mesh.position.y = this.size / 2;
       const hpBar = createHealthBar(Math.max(18, this.size*2.2));
       this.mesh.add(hpBar); hpBar.position.set(0, this.size + 6, 0);
       this.target = null; this.state = 'moving'; this.attackCooldown = 0;
@@ -585,8 +572,7 @@
       spawnPos.z = clamp(spawnPos.z, Game.placementZone.zMin, Game.placementZone.zMax);
       const tpl = { ...card };
       const troop = new Troop({ team: 'player', template: tpl, pos: spawnPos, path: lane });
-      troop.name = tpl.name;
-      troop.maxHp = tpl.hp; troop.hp = tpl.hp; troop.dmg = tpl.dmg; troop.speed = tpl.speed; troop.range = tpl.range; troop.projectile = !!tpl.projectile;
+      troop.name = tpl.name; troop.maxHp = tpl.hp; troop.hp = tpl.hp; troop.dmg = tpl.dmg; troop.speed = tpl.speed; troop.range = tpl.range; troop.projectile = !!tpl.projectile;
       log('Player spawned', troop.name, 'at', Math.round(spawnPos.x), Math.round(spawnPos.z));
     }catch(e){ errLog('spawnTroopFromCard error', e); }
   }
@@ -679,13 +665,11 @@
     }catch(e){ errLog('updateElixirUI error', e); }
   }
 
-  // -------------------- Cleanup helper --------------------
+  // -------------------- Cleanup --------------------
   function cleanupDead(){
     try{
       for(let i = World.troops.length - 1; i >= 0; --i){
-        if(World.troops[i].hp <= 0){
-          try{ scene.remove(World.troops[i].mesh); }catch(_){} World.troops.splice(i,1);
-        }
+        if(World.troops[i].hp <= 0){ try{ scene.remove(World.troops[i].mesh); }catch(_){} World.troops.splice(i,1); }
       }
       for(let i = World.projectiles.length - 1; i >= 0; --i){
         if(World.projectiles[i].dead){ try{ scene.remove(World.projectiles[i].mesh); }catch(_){} World.projectiles.splice(i,1); }
@@ -701,30 +685,23 @@
     const dt = clamp(t - last, 0, 0.06);
     last = t;
 
-    // run game update logic inside try/catch so it can't kill rendering
     try{
       if(!Game.paused){
-        // resource regen + UI
         Game.elixir = clamp(Game.elixir + Game.elixirRate * dt, 0, Game.elixirMax);
         updateElixirUI();
 
-        // AI tick
         try{ aiTick(dt); } catch(e){ errLog('aiTick wrapper', e); }
 
-        // towers firing (each wrapped)
         for(const tw of World.towers){
           try{ tw.tryFire(dt); } catch(e){ errLog('tower.tryFire wrapper', e); }
         }
 
-        // projectile updates
         try{ updateProjectiles(dt); } catch(e){ errLog('updateProjectiles wrapper', e); }
 
-        // troop updates
         for(const u of World.troops){
           try{ u.update(dt); } catch(e){ errLog('troop.update wrapper', e); }
         }
 
-        // visuals & effects
         for(const tw of World.towers){
           try{ tw.updateVisual(); } catch(e){ errLog('tower.updateVisual wrapper', e); }
         }
@@ -733,8 +710,8 @@
         }
         try{ updateEffects(dt); } catch(e){ errLog('updateEffects wrapper', e); }
 
-        // cleanup and win-check
         try{ cleanupDead(); } catch(e){ errLog('cleanupDead wrapper', e); }
+
         try{
           const pKing = World.towers.find(t => t.team === 'player' && t.kind === 'king');
           const eKing = World.towers.find(t => t.team === 'enemy' && t.kind === 'king');
@@ -743,24 +720,16 @@
         }catch(e){ errLog('win-check wrapper', e); }
       }
     }catch(e){
-      // Catch any unforeseen error in the big update block
       errLog('main update error', e);
     } finally {
-      // ALWAYS render the baseline scene so you never see a black screen
-      try{
-        controls.update();
-        renderer.render(scene, camera);
-      }catch(e){
-        // If even rendering fails, log it — but don't throw
-        errLog('render error', e);
-      }
+      // ALWAYS render the baseline scene
+      try{ controls.update(); renderer.render(scene, camera); } catch(e){ errLog('render error', e); }
     }
   }
 
   // -------------------- Buttons --------------------
   document.getElementById('btnPause').addEventListener('click', () => {
-    Game.paused = !Game.paused;
-    document.getElementById('btnPause').innerText = Game.paused ? 'Resume' : 'Pause';
+    Game.paused = !Game.paused; document.getElementById('btnPause').innerText = Game.paused ? 'Resume' : 'Pause';
   });
   document.getElementById('btnStep').addEventListener('click', () => {
     if(Game.paused){ Game.paused = false; last = now(); setTimeout(()=>{ Game.paused = true; }, 30); }
@@ -778,49 +747,33 @@
     }catch(e){ errLog('reset handler error', e); }
   });
 
-  document.getElementById('debugToggle').addEventListener('change', e => {
-    try{ debugGroup.visible = e.target.checked; } catch(err){ errLog('debugToggle error', err); }
-  });
+  document.getElementById('debugToggle').addEventListener('change', e => { try{ debugGroup.visible = e.target.checked; }catch(err){ errLog('debugToggle error', err); } });
 
   // -------------------- Init helpers --------------------
-  Game.recomputePlacementZones = function(){
-    const m = 1.4; const baseW = 170, baseH = 140;
-    const w = baseW * m, h = baseH * m;
-    this.placementZone.xMin = -w/2; this.placementZone.xMax = w/2;
-    this.placementZone.zMin = ARENA_H/2 - h - 10; this.placementZone.zMax = ARENA_H/2 - 30;
-  };
-
-  // -------------------- Input helper for demonstration --------------------
-  // (Deck click => place => spawnTroopFromCard on pointer)
-  renderer.domElement.addEventListener('pointerdown', (ev) => {
-    // event handled above, but keep robust guard too
-  });
+  Game.recomputePlacementZones = function(){ const m = 1.4; const baseW = 170, baseH = 140; const w = baseW * m, h = baseH * m; this.placementZone.xMin = -w/2; this.placementZone.xMax = w/2; this.placementZone.zMin = ARENA_H/2 - h - 10; this.placementZone.zMax = ARENA_H/2 - 30; };
 
   // -------------------- Deck & UI bootstrap --------------------
   function buildDeckUIAndBind(){
-    buildDeckUI();
-    updateElixirUI();
-    // quick keyboard shortcuts for debug
+    buildDeckUI(); updateElixirUI();
     window.addEventListener('keydown', (e) => {
       if(e.key === 'd') debugGroup.visible = !debugGroup.visible;
       if(e.key === 'r') document.getElementById('btnReset').click();
     });
   }
 
-  // expose minimal debug var
+  // expose for debug
   window.ClashMega = { scene, camera, renderer, World, Game, Lanes, debugGroup };
 
-  // -------------------- Start the game --------------------
+  // -------------------- Start --------------------
   try{
     Game.recomputePlacementZones();
     spawnAllTowers();
     buildDeckUIAndBind();
     updateElixirUI();
     animate();
-    log('Defensive MEGA 3D rebuild loaded — arena locked, gameplay active. Errors will be reported but will not stop rendering.');
+    log('Full mega rebuild loaded — OrbitControls fixed and defensive loop active. Debug markers off by default.');
   }catch(e){
     errLog('startup error', e);
-    // ensure we still render baseline even if startup fails
     try{ renderer.render(scene, camera); } catch(e2){ errLog('startup fallback render error', e2); }
   }
   </script>
