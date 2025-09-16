@@ -1,274 +1,595 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Clash Royale 3D Mega Build</title>
-  <style>
-    body { margin: 0; overflow: hidden; background: #000; }
-    #ui {
-      position: absolute;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255,255,255,0.85);
-      padding: 10px;
-      border-radius: 8px;
-      display: flex;
-      gap: 5px;
-      font-family: sans-serif;
-    }
-    .button {
-      padding: 5px 10px;
-      background: #ddd;
-      border: 1px solid #aaa;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-  </style>
-  <!-- Three.js core -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.154/build/three.min.js"></script>
-  <!-- OrbitControls fix -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.154/examples/js/controls/OrbitControls.js"></script>
+<meta charset="utf-8"/>
+<title>MegaFixes 3D — Waypoints Visible (Debug)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>
+  html,body { height:100%; margin:0; background:#071019; color:#e6eef6; font-family:Inter, Arial, sans-serif; }
+  #ui { position: absolute; right:12px; top:12px; width:380px; background: rgba(6,12,16,0.78); padding:12px; border-radius:8px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); z-index:10;}
+  #canvasHolder { width: calc(100% - 420px); height: 100vh; display:inline-block; vertical-align:top; }
+  #controls { margin-top:8px; display:flex; gap:8px; }
+  .btn{ padding:8px 10px; border-radius:8px; background:#0b2b2a; border:1px solid rgba(255,255,255,0.03); color:#dff7ff; cursor:pointer; }
+  label{display:block;font-size:12px;color:#9fb3bf;margin-top:8px}
+  input[type=range]{width:100%}
+  #log{margin-top:8px;height:160px;overflow:auto;background:#021016;padding:8px;border-radius:6px;font-family:monospace;font-size:12px}
+  .muted{color:#9fb3bf;font-size:12px}
+  .deck{display:flex;gap:8px;margin-top:8px}
+  .card{width:76px;height:100px;background:#e8eedc;color:#082;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;cursor:pointer}
+  .card.disabled{opacity:0.5;pointer-events:none}
+  #elixirBar{height:18px;background:#042; border-radius:9px; margin-top:6px; overflow:hidden}
+  #elixirFill{height:100%; width:0%; background:linear-gradient(180deg,#ffe26b,#ffc83a)}
+  .small{font-size:12px;color:#9fb3bf}
+</style>
 </head>
 <body>
+  <div id="canvasHolder"></div>
+
   <div id="ui">
-    <div class="button" id="spawnBlue">Spawn Blue Troop</div>
-    <div class="button" id="spawnRed">Spawn Red Troop</div>
-    <div class="button" id="reset">Reset</div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <strong>MegaFixes 3D — Waypoints Debug</strong>
+      <div class="small muted">Blue = pre-bridge, Red = post-bridge</div>
+    </div>
+
+    <div id="controls">
+      <button id="btnPause" class="btn">Pause</button>
+      <button id="btnStep" class="btn">Step</button>
+      <button id="btnReset" class="btn">Reset</button>
+    </div>
+
+    <label>Placement Area Multiplier: <span id="pmVal">1.4</span></label>
+    <input id="placementMul" type="range" min="0.6" max="2.5" step="0.05" value="1.4"/>
+
+    <label>Princess Nerf — Damage <span id="dVal">0.75</span> Range <span id="rVal">0.9</span> Rate <span id="rateVal">0.95</span> HP <span id="hpVal">0.95</span></label>
+    <input id="dmgMul" type="range" min="0.2" max="2.0" step="0.01" value="0.75"/>
+    <input id="rangeMul" type="range" min="0.2" max="2.0" step="0.01" value="0.9"/>
+    <input id="rateMul" type="range" min="0.2" max="3.0" step="0.01" value="0.95"/>
+    <input id="hpMul" type="range" min="0.2" max="2.0" step="0.01" value="0.95"/>
+
+    <label><input type="checkbox" id="chkKingWake" checked/> King tower only wakes after a Princess dies</label>
+
+    <label>Deck / Elixir</label>
+    <div id="elixirBar"><div id="elixirFill"></div></div>
+    <div class="small muted" id="elixirText">Elixir: 0 / 10</div>
+
+    <div class="deck" id="deck"></div>
+
+    <label class="muted">Click a card, then click anywhere on your side to deploy (free placement).</label>
+
+    <div id="log"></div>
   </div>
+
+  <!-- Three.js -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+
   <script>
-    // === SETUP ===
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87CEEB); // sky blue
+  /******************************************************************
+   * MegaFixes 3D — Waypoints Visible
+   * - Bridge pre/post waypoint markers added (blue / red spheres)
+   * - Troops spawn anywhere on player half; pick nearest lane and follow:
+   *   spawn -> pre-bridge waypoint -> post-bridge waypoint -> target tower
+   * - Towers only target troops that have crossed the post-bridge waypoint
+   * - Keeps previous fixes: forward spawn, tuned tower damage/range, simple AI
+   ******************************************************************/
 
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
-    // More top-down view
-    camera.position.set(0, 180, 80);
-    camera.lookAt(0,0,0);
+  // -------------------- Utilities & small helpers --------------------
+  const logEl = document.getElementById('log');
+  function log(...args){
+    const s = new Date().toLocaleTimeString() + '  ' + args.map(a=> (typeof a==='object'?JSON.stringify(a):a)).join(' ');
+    logEl.innerText = s + '\\n' + logEl.innerText;
+    if(logEl.innerText.length > 20000) logEl.innerText = logEl.innerText.substr(0,20000);
+    console.log(...args);
+  }
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  function vdist(a,b){ const dx=a.x-b.x, dz=a.z-b.z; return Math.sqrt(dx*dx + dz*dz); }
+  function now(){ return performance.now() / 1000; }
+  function randRange(a,b){ return a + Math.random()*(b-a); }
 
-    const renderer = new THREE.WebGLRenderer({antialias:true});
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+  // -------------------- Three.js setup --------------------
+  const container = document.getElementById('canvasHolder');
+  const W = Math.max(900, window.innerWidth - 420);
+  const H = window.innerHeight;
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(50, W/H, 0.1, 2000);
+  camera.position.set(0, 150, 280);
+  camera.lookAt(0, 0, 0);
+  const renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(W,H);
+  renderer.setPixelRatio(window.devicePixelRatio || 1);
+  container.appendChild(renderer.domElement);
 
-    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.6); scene.add(ambient);
+  const dir = new THREE.DirectionalLight(0xffffff, 0.6); dir.position.set(100,200,100); scene.add(dir);
 
-    // === LIGHTS ===
-    const ambient = new THREE.AmbientLight(0xffffff, 2.0);
-    scene.add(ambient);
+  // -------------------- Inspector / UI values --------------------
+  const Inspector = {
+    placementMul: parseFloat(document.getElementById('placementMul').value),
+    dmgMul: parseFloat(document.getElementById('dmgMul').value),
+    rangeMul: parseFloat(document.getElementById('rangeMul').value),
+    rateMul: parseFloat(document.getElementById('rateMul').value),
+    hpMul: parseFloat(document.getElementById('hpMul').value),
+    kingWakeRule: document.getElementById('chkKingWake').checked
+  };
 
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
-    hemiLight.position.set(0, 200, 0);
-    scene.add(hemiLight);
-
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    dirLight.position.set(50, 120, 50);
-    scene.add(dirLight);
-
-    // === ARENA ===
-    const groundGeo = new THREE.PlaneGeometry(200, 120);
-    const groundMat = new THREE.MeshPhongMaterial({color: 0x228B22});
-    const ground = new THREE.Mesh(groundGeo, groundMat);
-    ground.rotation.x = -Math.PI/2;
-    scene.add(ground);
-
-    // River
-    const riverGeo = new THREE.PlaneGeometry(200, 20);
-    const riverMat = new THREE.MeshPhongMaterial({color: 0x1E90FF});
-    const river = new THREE.Mesh(riverGeo, riverMat);
-    river.rotation.x = -Math.PI/2;
-    scene.add(river);
-
-    // Bridges
-    const bridgeGeo = new THREE.BoxGeometry(30,2,10);
-    const bridgeMat = new THREE.MeshPhongMaterial({color: 0x8B4513});
-    const bridgeLeft = new THREE.Mesh(bridgeGeo, bridgeMat);
-    bridgeLeft.position.set(-50,1,0);
-    scene.add(bridgeLeft);
-    const bridgeRight = new THREE.Mesh(bridgeGeo, bridgeMat);
-    bridgeRight.position.set(50,1,0);
-    scene.add(bridgeRight);
-
-    // === TOWERS ===
-    function createTower(x,z,color){
-      const geo = new THREE.CylinderGeometry(5,5,20,16);
-      const mat = new THREE.MeshPhongMaterial({color: color});
-      const tower = new THREE.Mesh(geo, mat);
-      tower.position.set(x,10,z);
-      tower.userData = {hp:100, color: color, type:"tower", cooldown:0};
-      scene.add(tower);
-      return tower;
-    }
-    const blueLeftTower = createTower(-60,50,0x0000ff);
-    const blueRightTower = createTower(60,50,0x0000ff);
-    const redLeftTower = createTower(-60,-50,0xff0000);
-    const redRightTower = createTower(60,-50,0xff0000);
-    const towers = [blueLeftTower, blueRightTower, redLeftTower, redRightTower];
-
-    // === TROOPS ===
-    const troops = [];
-    const projectiles = [];
-
-    function createTroop(x,z,color){
-      const geo = new THREE.SphereGeometry(3,16,16);
-      const mat = new THREE.MeshPhongMaterial({color: color});
-      const troop = new THREE.Mesh(geo, mat);
-      troop.position.set(x,3,z);
-      troop.userData = {hp:30, color: color, target:null, type:"troop", cooldown:0};
-      scene.add(troop);
-      troops.push(troop);
-      return troop;
-    }
-
-    document.getElementById("spawnBlue").onclick = ()=>createTroop(0,60,0x0000ff);
-    document.getElementById("spawnRed").onclick = ()=>createTroop(0,-60,0xff0000);
-
-    document.getElementById("reset").onclick = ()=>{
-      while(troops.length>0){
-        const t = troops.pop();
-        scene.remove(t);
-      }
-      while(projectiles.length>0){
-        const p = projectiles.pop();
-        scene.remove(p.mesh);
-      }
-      towers.forEach(t=>t.userData.hp=100);
-    }
-
-    // === UTILS ===
-    function distance(a,b){
-      return a.position.distanceTo(b.position);
-    }
-
-    function shootProjectile(from,to,color){
-      const geo = new THREE.SphereGeometry(1,8,8);
-      const mat = new THREE.MeshPhongMaterial({color: color});
-      const mesh = new THREE.Mesh(geo,mat);
-      mesh.position.copy(from.position);
-      scene.add(mesh);
-      projectiles.push({mesh:mesh, target:to, color:color, speed:1.0, damage:2});
-    }
-
-    // === GAME LOOP ===
-    function updateGame(){
-      // Troops update
-      for(let i=0;i<troops.length;i++){
-        const troop = troops[i];
-        if (!troop.userData.hp || troop.userData.hp <= 0) continue;
-
-        troop.userData.cooldown = Math.max(0, troop.userData.cooldown-1);
-
-        if (troop.userData.target && troop.userData.target.userData.hp > 0){
-          const target = troop.userData.target;
-          if (distance(troop, target) < 10){
-            if (troop.userData.cooldown===0){
-              target.userData.hp -= 2;
-              troop.userData.cooldown=30;
-              if (target.userData.hp <= 0){
-                scene.remove(target);
-                if (target.userData.type==="troop"){
-                  troops.splice(troops.indexOf(target),1);
-                }
-                troop.userData.target=null;
-              }
-            }
-          } else {
-            // move at fixed speed toward target
-            const dir = new THREE.Vector3().subVectors(target.position, troop.position).normalize();
-            troop.position.add(dir.multiplyScalar(0.1));
-          }
-        } else {
-          // Find nearby enemy troop
-          let nearest=null, nearestDist=Infinity;
-          for (let j=0;j<troops.length;j++){
-            const other = troops[j];
-            if (other===troop) continue;
-            if (other.userData.color!==troop.userData.color && other.userData.hp>0){
-              const d=distance(troop,other);
-              if (d<nearestDist){
-                nearest=other;
-                nearestDist=d;
-              }
-            }
-          }
-          if (nearest && nearestDist<15){
-            troop.userData.target=nearest;
-          } else {
-            // March toward nearest enemy tower
-            const enemyTowers = towers.filter(t=>t.userData.color!==troop.userData.color && t.userData.hp>0);
-            if (enemyTowers.length>0){
-              const targetTower=enemyTowers[0];
-              if (distance(troop,targetTower)<12){
-                troop.userData.target=targetTower;
-              } else {
-                const dir = new THREE.Vector3().subVectors(targetTower.position, troop.position).normalize();
-                troop.position.add(dir.multiplyScalar(0.05)); // slower speed for towers
-              }
-            }
-          }
-        }
-      }
-
-      // Towers attack
-      towers.forEach(tower=>{
-        if (tower.userData.hp<=0) return;
-        tower.userData.cooldown=Math.max(0,tower.userData.cooldown-1);
-        if (tower.userData.cooldown===0){
-          let nearest=null,nearestDist=Infinity;
-          troops.forEach(t=>{
-            if (t.userData.color!==tower.userData.color && t.userData.hp>0){
-              const d=distance(t,tower);
-              if (d<nearestDist && d<40){
-                nearest=t;
-                nearestDist=d;
-              }
-            }
-          });
-          if (nearest){
-            shootProjectile(tower,nearest,tower.userData.color);
-            tower.userData.cooldown=60;
-          }
-        }
-      });
-
-      // Projectiles
-      for (let i=projectiles.length-1;i>=0;i--){
-        const p=projectiles[i];
-        if (!p.target || !p.target.userData.hp || p.target.userData.hp<=0){
-          scene.remove(p.mesh);
-          projectiles.splice(i,1);
-          continue;
-        }
-        p.mesh.position.lerp(p.target.position,0.1*p.speed);
-        if (distance(p.mesh,p.target)<2){
-          p.target.userData.hp-=p.damage;
-          if (p.target.userData.hp<=0){
-            scene.remove(p.target);
-            if (p.target.userData.type==="troop"){
-              troops.splice(troops.indexOf(p.target),1);
-            }
-          }
-          scene.remove(p.mesh);
-          projectiles.splice(i,1);
-        }
-      }
-    }
-
-    function animate(){
-      requestAnimationFrame(animate);
-      try{
-        updateGame();
-      }catch(e){
-        console.error("Game loop error:",e);
-      }
-      renderer.render(scene,camera);
-    }
-    animate();
-
-    window.addEventListener("resize",()=>{
-      camera.aspect=window.innerWidth/window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth,window.innerHeight);
+  document.getElementById('placementMul').addEventListener('input', e=>{
+    Inspector.placementMul = parseFloat(e.target.value);
+    document.getElementById('pmVal').innerText = Inspector.placementMul.toFixed(2);
+    Game.recomputePlacementZones();
+  });
+  function wireRange(id, labelId, key){
+    document.getElementById(id).addEventListener('input', e=>{
+      Inspector[key] = parseFloat(e.target.value);
+      document.getElementById(labelId).innerText = Inspector[key].toFixed(2);
+      Game.applyTowerMultipliers();
     });
+  }
+  wireRange('dmgMul','dVal','dmgMul');
+  wireRange('rangeMul','rVal','rangeMul');
+  wireRange('rateMul','rateVal','rateMul');
+  wireRange('hpMul','hpVal','hpMul');
+  document.getElementById('chkKingWake').addEventListener('change', e=>{
+    Inspector.kingWakeRule = e.target.checked;
+  });
+
+  // -------------------- Arena geometry & lane waypoints --------------------
+  const ARENA_W = 220, ARENA_H = 340, RIVER_H = 36, BRIDGE_W = 44;
+  const arenaGroup = new THREE.Group(); scene.add(arenaGroup);
+
+  function buildArena(){
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_W, ARENA_H), new THREE.MeshLambertMaterial({color:0x184b2f}));
+    floor.rotation.x = -Math.PI/2; arenaGroup.add(floor);
+    const river = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_W, RIVER_H), new THREE.MeshLambertMaterial({color:0x1e6b88}));
+    river.position.z = 0; river.rotation.x = -Math.PI/2; river.position.y = 0.02; arenaGroup.add(river);
+    const bridgeGeom = new THREE.BoxGeometry(BRIDGE_W, 2, 72);
+    const bmat = new THREE.MeshLambertMaterial({color:0x7d5a34});
+    const b1 = new THREE.Mesh(bridgeGeom, bmat); b1.position.set(-64,0.5,0); arenaGroup.add(b1);
+    const b2 = new THREE.Mesh(bridgeGeom, bmat); b2.position.set(64,0.5,0); arenaGroup.add(b2);
+  }
+  buildArena();
+
+  // Waypoint structure: [spawnAnchor, preBridge, postBridge, enemyApproach, enemySpawn]
+  const Lanes = {
+    left: [
+      new THREE.Vector3(-64, 0, ARENA_H/2 - 36),    // spawnAnchor (player spawn region)
+      new THREE.Vector3(-64, 0, 40),                // PRE-BRIDGE (your side)  (blue)
+      new THREE.Vector3(-8, 0, 0),                  // POST-BRIDGE (enemy side) (red)
+      new THREE.Vector3(-64, 0, -40),               // enemy approach
+      new THREE.Vector3(-64, 0, -ARENA_H/2 + 36)    // enemy spawn anchor
+    ],
+    right: [
+      new THREE.Vector3(64, 0, ARENA_H/2 - 36),
+      new THREE.Vector3(64, 0, 40),
+      new THREE.Vector3(8, 0, 0),
+      new THREE.Vector3(64, 0, -40),
+      new THREE.Vector3(64, 0, -ARENA_H/2 + 36)
+    ]
+  };
+
+  // debug waypoint markers (visible)
+  const WaypointMarkers = { left: {pre:null, post:null}, right: {pre:null, post:null} };
+  function createWaypointMarkers(){
+    // remove old
+    for(const side of ['left','right']){
+      if(WaypointMarkers[side].pre){ scene.remove(WaypointMarkers[side].pre); WaypointMarkers[side].pre = null; }
+      if(WaypointMarkers[side].post){ scene.remove(WaypointMarkers[side].post); WaypointMarkers[side].post = null; }
+    }
+    // pre-bridge: blue spheres, post-bridge: red spheres
+    const preGeom = new THREE.SphereGeometry(3.4, 12, 12);
+    const preMat = new THREE.MeshLambertMaterial({color:0x2ea0ff, emissive:0x112233});
+    const postGeom = new THREE.SphereGeometry(3.4, 12, 12);
+    const postMat = new THREE.MeshLambertMaterial({color:0xff4c4c, emissive:0x331111});
+    WaypointMarkers.left.pre = new THREE.Mesh(preGeom, preMat); WaypointMarkers.left.pre.position.copy(Lanes.left[1]); WaypointMarkers.left.pre.position.y = 3.5; scene.add(WaypointMarkers.left.pre);
+    WaypointMarkers.left.post = new THREE.Mesh(postGeom, postMat); WaypointMarkers.left.post.position.copy(Lanes.left[2]); WaypointMarkers.left.post.position.y = 3.5; scene.add(WaypointMarkers.left.post);
+    WaypointMarkers.right.pre = new THREE.Mesh(preGeom, preMat); WaypointMarkers.right.pre.position.copy(Lanes.right[1]); WaypointMarkers.right.pre.position.y = 3.5; scene.add(WaypointMarkers.right.pre);
+    WaypointMarkers.right.post = new THREE.Mesh(postGeom, postMat); WaypointMarkers.right.post.position.copy(Lanes.right[2]); WaypointMarkers.right.post.position.y = 3.5; scene.add(WaypointMarkers.right.post);
+  }
+  createWaypointMarkers();
+
+  // -------------------- World / pools --------------------
+  const World = { troops: [], towers: [], projectiles: [] };
+
+  // -------------------- Helpers: healthbar, simple meshes --------------------
+  function createHealthBar(){
+    const group = new THREE.Group();
+    const back = new THREE.Mesh(new THREE.PlaneGeometry(22,3), new THREE.MeshBasicMaterial({color:0x000000, transparent:true, opacity:0.6}));
+    const front = new THREE.Mesh(new THREE.PlaneGeometry(20,2.2), new THREE.MeshBasicMaterial({color:0x33ff88}));
+    front.name = 'hpFront'; front.position.z = 0.01; back.add(front); group.add(back);
+    group.position.y = 36;
+    return group;
+  }
+  function towerMesh(kind, team){
+    const color = (team === 'player') ? 0x2f7a47 : 0x7a2f2f;
+    const geo = new THREE.CylinderGeometry(12, 12, 28, 12);
+    return new THREE.Mesh(geo, new THREE.MeshLambertMaterial({color}));
+  }
+
+  // -------------------- Tower class --------------------
+  function Tower(opts){
+    this.team = opts.team;
+    this.kind = opts.kind;
+    this.pos = opts.pos.clone();
+    this.baseHP = (opts.kind === 'king') ? 1600 : 1000;
+    this.hp = this.baseHP;
+    // TUNED values
+    this.baseDamage = (opts.kind === 'king') ? 90 : 45;
+    this.baseRange = (opts.kind === 'king') ? 140 : 110; // tightened
+    this.baseFireRate = 1.0;
+    this.damage = this.baseDamage;
+    this.range = this.baseRange;
+    this.fireRate = this.baseFireRate;
+    this.cooldown = 0;
+    this.active = true;
+    this.mesh = towerMesh(this.kind, this.team);
+    this.mesh.position.set(this.pos.x, 14, this.pos.z);
+    this.hpBar = createHealthBar();
+    this.hpBar.position.set(this.pos.x, 36, this.pos.z);
+    scene.add(this.mesh); scene.add(this.hpBar);
+    this.id = this.team + '-' + this.kind;
+  }
+
+  Tower.prototype.updateVisual = function(){
+    this.mesh.position.set(this.pos.x, 14, this.pos.z);
+    this.hpBar.position.set(this.pos.x, 36, this.pos.z);
+    const front = this.hpBar.children[0].getObjectByName('hpFront');
+    if(front){
+      const pct = clamp(this.hp / this.baseHP, 0, 1);
+      front.scale.x = pct; front.position.x = - (20 * (1 - pct)) / 2;
+    }
+    if(this.hp <= 0){ this.mesh.material.color.setHex(0x333333); this.active = false; }
+  };
+
+  // Only target troops that have crossed the bridge (troop.crossedBridge = true) AND that are on the same side (z sign).
+  Tower.prototype.canTarget = function(candidate){
+    if(!candidate) return false;
+    if(candidate.hp <= 0) return false;
+    // if candidate is troop object
+    if(candidate.crossedBridge !== undefined){
+      if(!candidate.crossedBridge) return false; // hasn't crossed yet -> cannot be targeted
+      // now require candidate to be on same side of river as tower (sign check)
+      if(Math.sign(this.pos.z) !== Math.sign(candidate.mesh.position.z)) return false;
+      return true;
+    }
+    // if candidate is a tower (rare) allow (used for targeting towers)
+    return true;
+  };
+
+  Tower.prototype.tryFire = function(dt){
+    if(this.hp <= 0) return;
+    if(this.cooldown > 0){ this.cooldown -= dt; return; }
+    if(this.kind === 'king' && Inspector.kingWakeRule){
+      const teamPrincesses = World.towers.filter(t=>t.team===this.team && t.kind==='princess');
+      const anyAlive = teamPrincesses.some(p=>p.hp > 0);
+      if(anyAlive) return; // king sleeping
+    }
+    let best=null, bd=Infinity;
+    for(const u of World.troops){
+      if(u.team === this.team) continue;
+      if(u.hp <= 0) continue;
+      if(!this.canTarget(u)) continue;
+      const d = vdist(this.pos, u.mesh.position);
+      if(d <= this.range && d < bd){ bd = d; best = u; }
+    }
+    if(best){
+      spawnProjectile(this.pos.clone(), best, this.damage, this.team);
+      this.cooldown = 1.0 / this.fireRate;
+    }
+  };
+
+  // -------------------- Projectiles --------------------
+  function spawnProjectile(fromVec, targetUnit, power, team){
+    const geo = new THREE.SphereGeometry(1.8,8,8);
+    const mat = new THREE.MeshBasicMaterial({color:0xffdddd});
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(fromVec); mesh.position.y = 10;
+    scene.add(mesh);
+    const proj = { mesh, target: targetUnit, power, speed: 220, dead:false, team };
+    World.projectiles.push(proj);
+  }
+
+  function updateProjectiles(dt){
+    for(const p of World.projectiles){
+      if(p.dead) continue;
+      if(!p.target || p.target.hp <= 0){ p.dead = true; scene.remove(p.mesh); continue; }
+      const tpos = p.target.mesh ? p.target.mesh.position : p.target.pos;
+      const dx = tpos.x - p.mesh.position.x, dz = tpos.z - p.mesh.position.z;
+      const d = Math.sqrt(dx*dx + dz*dz);
+      if(d < 3){
+        p.target.hp = Math.max(0, p.target.hp - p.power);
+        p.dead = true; scene.remove(p.mesh);
+        log('Projectile hit', (p.target.team? p.target.team + '-' + p.target.name : p.target.id), 'hp->', Math.round(p.target.hp));
+      } else {
+        const nx = dx / d, nz = dz / d;
+        const move = p.speed * dt;
+        p.mesh.position.x += nx * move; p.mesh.position.z += nz * move;
+      }
+    }
+    for(let i = World.projectiles.length -1; i>=0; --i) if(World.projectiles[i].dead) World.projectiles.splice(i,1);
+  }
+
+  // -------------------- Troop --------------------
+  function Troop(opts){
+    this.team = opts.team;
+    this.name = opts.template.name;
+    this.hp = opts.template.hp;
+    this.maxHp = this.hp;
+    this.dmg = opts.template.dmg;
+    this.speed = opts.template.speed;
+    this.range = opts.template.range;
+    this.projectile = !!opts.template.projectile;
+    this.size = opts.template.size || 6;
+    this.path = opts.path.map(p=>p.clone());
+    // IMPORTANT: choose starting waypoint index to avoid backwards motion
+    // Start at 1 (pre-bridge) so troop moves forward immediately
+    this.waypointIndex = (this.team === 'player') ? 1 : (this.path.length - 2);
+    this.crossedBridge = false; // will flip true once waypointIndex >= postBridgeIndex (which is 2)
+    this.mesh = new THREE.Mesh(new THREE.BoxGeometry(this.size, this.size, this.size), new THREE.MeshLambertMaterial({color: (this.team==='player'?0xffe0b0:0xffb0b0)}));
+    // spawn position set by caller
+    this.mesh.position.copy(opts.pos); this.mesh.position.y = this.size/2;
+    const hp = createHealthBar(); this.mesh.add(hp); hp.position.set(0, this.size + 6, 0); this.hpBar = hp;
+    this.target = null; this.state = 'moving'; this.attackCooldown = 0;
+    this.id = 'troop-' + Math.random().toString(36).substr(2,6);
+    scene.add(this.mesh); World.troops.push(this);
+  }
+
+  Troop.prototype.updateVisual = function(){
+    const front = this.mesh.children[0].getObjectByName('hpFront');
+    if(front){ const pct = clamp(this.hp / this.maxHp, 0, 1); front.scale.x = pct; front.position.x = - (20 * (1 - pct)) / 2; }
+  };
+
+  Troop.prototype.findTarget = function(){
+    let best=null, bd=Infinity;
+    for(const u of World.troops){ if(u.team === this.team || u.hp<=0) continue; const d = vdist(this.mesh.position, u.mesh.position); if(d < bd){ bd = d; best = u; } }
+    if(best) return best;
+    for(const t of World.towers){ if(t.team === this.team || t.hp<=0) continue; const d2 = vdist(this.mesh.position, t.pos); if(d2 < bd){ bd = d2; best = t; } }
+    return best;
+  };
+
+  Troop.prototype.update = function(dt){
+    if(this.hp <= 0) return;
+    if(this.target && this.target.hp <= 0){ this.target = null; this.state = 'moving'; }
+    if(!this.target) this.target = this.findTarget();
+
+    // update crossedBridge flag when we pass the post-bridge waypoint index (index 2)
+    if(this.waypointIndex >= 2) this.crossedBridge = true;
+
+    if(this.target){
+      const targetPos = (this.target.mesh) ? this.target.mesh.position : this.target.pos;
+      const d = vdist(this.mesh.position, targetPos);
+      if(d <= this.range + 6){
+        this.state = 'attacking'; this.attack(dt); return;
+      } else { this.state = 'moving'; }
+    }
+
+    if(this.state === 'moving'){
+      if(this.waypointIndex >= this.path.length){
+        if(this.target) this.moveToward((this.target.mesh?this.target.mesh.position:this.target.pos), dt);
+      } else {
+        const wp = this.path[this.waypointIndex];
+        const dwp = vdist(this.mesh.position, wp);
+        if(dwp < 4) this.waypointIndex++;
+        else this.moveToward(wp, dt);
+      }
+    }
+  };
+
+  Troop.prototype.moveToward = function(vec3, dt){
+    const cur = this.mesh.position;
+    const dx = vec3.x - cur.x, dz = vec3.z - cur.z;
+    const d = Math.sqrt(dx*dx + dz*dz);
+    if(d < 0.01) return;
+    const nx = dx / d, nz = dz / d;
+    const move = this.speed * dt;
+    const actual = Math.min(move, d);
+    this.mesh.position.x += nx * actual; this.mesh.position.z += nz * actual; this.mesh.position.y = this.size/2;
+  };
+
+  Troop.prototype.attack = function(dt){
+    if(this.attackCooldown > 0){ this.attackCooldown -= dt; return; }
+    if(this.projectile){
+      spawnProjectile(this.mesh.position.clone(), this.target, this.dmg, this.team);
+    } else {
+      this.target.hp = Math.max(0, this.target.hp - this.dmg);
+    }
+    this.attackCooldown = 1.0;
+  };
+
+  // -------------------- Game & AI --------------------
+  const Game = {
+    elixir: 4, elixirMax: 10, elixirRate: 1, last: now(), paused:false,
+    placementZone: { xMin:-80, xMax:80, zMin: ARENA_H/2 - 140, zMax: ARENA_H/2 - 30 },
+    deckTemplates: [
+      {name:'Knight', hp:420, dmg:48, speed:45, range:8, projectile:false, cost:3, size:8},
+      {name:'Archer', hp:200, dmg:28, speed:55, range:120, projectile:true, cost:3, size:6},
+      {name:'Giant', hp:1100, dmg:62, speed:32, range:12, projectile:false, cost:5, size:12},
+      {name:'Hog', hp:320, dmg:60, speed:110, range:10, projectile:false, cost:4, size:8}
+    ],
+    selectedCard: null,
+    ai: { elixir: 4, spawnIntervalMin: 1.2, spawnIntervalMax: 3.0, lastSpawnAttempt: 0 }
+  };
+
+  function spawnAllTowers(){
+    for(const t of World.towers){ try{ scene.remove(t.mesh); scene.remove(t.hpBar); }catch(e){} }
+    World.towers.length = 0;
+    const pLeft = new Tower({team:'player', kind:'princess', pos:new THREE.Vector3(-64,0, ARENA_H/2 - 80)});
+    const pRight = new Tower({team:'player', kind:'princess', pos:new THREE.Vector3(64,0, ARENA_H/2 - 80)});
+    const pKing = new Tower({team:'player', kind:'king', pos:new THREE.Vector3(0,0, ARENA_H/2 - 40)});
+    const eLeft = new Tower({team:'enemy', kind:'princess', pos:new THREE.Vector3(-64,0, -ARENA_H/2 + 80)});
+    const eRight = new Tower({team:'enemy', kind:'princess', pos:new THREE.Vector3(64,0, -ARENA_H/2 + 80)});
+    const eKing = new Tower({team:'enemy', kind:'king', pos:new THREE.Vector3(0,0, -ARENA_H/2 + 40)});
+    World.towers.push(pLeft,pRight,pKing,eLeft,eRight,eKing);
+    for(const t of World.towers) t.updateVisual();
+  }
+
+  Game.recomputePlacementZones = function(){
+    const m = Inspector.placementMul;
+    const baseW = 150, baseH = 120;
+    const w = baseW * m, h = baseH * m;
+    this.placementZone.xMin = -w/2; this.placementZone.xMax = w/2;
+    this.placementZone.zMin = ARENA_H/2 - h - 10; this.placementZone.zMax = ARENA_H/2 - 30;
+    // debug: show zone as markers (not rendered here—waypoints suffice)
+  };
+
+  Game.applyTowerMultipliers = function(){
+    for(const t of World.towers){
+      t.damage = Math.round(t.baseDamage * Inspector.dmgMul);
+      t.range = Math.round(t.baseRange * Inspector.rangeMul);
+      t.fireRate = Math.max(0.05, t.baseFireRate * Inspector.rateMul);
+      t.updateVisual();
+    }
+    log('Applied tower multipliers');
+  };
+
+  function spawnTroopFromCard(cardTemplate, worldPos){
+    if(worldPos.z < Game.placementZone.zMin || worldPos.z > Game.placementZone.zMax ||
+       worldPos.x < Game.placementZone.xMin || worldPos.x > Game.placementZone.xMax){
+      log('Placement outside allowed area'); return;
+    }
+    if(Game.elixir < cardTemplate.cost){ log('Not enough elixir'); return; }
+    Game.elixir -= cardTemplate.cost; updateElixirUI();
+    // choose lane nearest by x
+    const laneName = (worldPos.x < 0) ? 'left' : 'right';
+    const lane = Lanes[laneName];
+    // spawnPos = clicked location (free placement) but snap z to spawn anchor z so they start at correct lane depth
+    const spawnPos = worldPos.clone();
+    spawnPos.y = 0;
+    // For better pathing start them slightly behind the pre-bridge (if user placed too close to bridge)
+    // But keep spawn exactly at clicked X so horizontal placement is preserved
+    spawnPos.z = clamp(spawnPos.z, Game.placementZone.zMin, Game.placementZone.zMax);
+    // Create troop: set path = lane, pos = spawnPos
+    const troop = new Troop({team:'player', template:cardTemplate, pos: spawnPos, path: lane});
+    troop.name = cardTemplate.name;
+    troop.maxHp = cardTemplate.hp; troop.hp = cardTemplate.hp; troop.dmg = cardTemplate.dmg;
+    troop.speed = cardTemplate.speed; troop.range = cardTemplate.range; troop.projectile = !!cardTemplate.projectile;
+    log('Player spawned', troop.name, 'at', Math.round(spawnPos.x), Math.round(spawnPos.z));
+  }
+
+  // AI: very simple elixir & spawn
+  function aiTick(dt){
+    Game.ai.elixir = clamp(Game.ai.elixir + Game.elixirRate * dt, 0, Game.elixirMax);
+    Game.ai.lastSpawnAttempt += dt;
+    const next = randRange(Game.ai.spawnIntervalMin, Game.ai.spawnIntervalMax);
+    if(Game.ai.lastSpawnAttempt >= next){
+      Game.ai.lastSpawnAttempt = 0;
+      const candidate = Game.deckTemplates[Math.floor(Math.random() * Game.deckTemplates.length)];
+      if(Game.ai.elixir >= candidate.cost){
+        const laneChoiceName = (Math.random() < 0.5) ? 'left' : 'right';
+        const lane = Lanes[laneChoiceName];
+        const spawnPos = lane[lane.length - 1].clone(); // enemy spawn anchor
+        spawnPos.x += (Math.random() - 0.5) * 20;
+        aiSpawnTroop(candidate, spawnPos, lane);
+        Game.ai.elixir -= candidate.cost;
+        log('AI spawned', candidate.name, 'on', laneChoiceName);
+      }
+    }
+  }
+
+  function aiSpawnTroop(cardTemplate, worldPos, path){
+    const spawnPos = worldPos.clone(); spawnPos.y = 0;
+    const troop = new Troop({team:'enemy', template:cardTemplate, pos: spawnPos, path: path});
+    troop.name = cardTemplate.name;
+    troop.maxHp = cardTemplate.hp; troop.hp = cardTemplate.hp; troop.dmg = cardTemplate.dmg;
+    troop.speed = cardTemplate.speed; troop.range = cardTemplate.range; troop.projectile = !!cardTemplate.projectile;
+  }
+
+  // -------------------- Input: screen -> world --------------------
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  function screenToWorld(x,y){
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ( (x - rect.left) / rect.width ) * 2 - 1;
+    mouse.y = - ( (y - rect.top) / rect.height ) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+    const p = new THREE.Vector3(); raycaster.ray.intersectPlane(plane, p);
+    return p;
+  }
+
+  renderer.domElement.addEventListener('pointerdown', ev=>{
+    const p = screenToWorld(ev.clientX, ev.clientY);
+    if(Game.selectedCard){
+      spawnTroopFromCard(Game.selectedCard, p);
+      Game.selectedCard = null; highlightSelected(null);
+    }
+  });
+
+  // -------------------- Deck UI & Elixir UI --------------------
+  const deckEl = document.getElementById('deck');
+  function buildDeckUI(){
+    deckEl.innerHTML = '';
+    for(const tpl of Game.deckTemplates){
+      const d = document.createElement('div');
+      d.className = 'card';
+      d.innerHTML = `<div style="font-weight:700">${tpl.name}</div><div class="small">${tpl.cost} elixir</div>`;
+      d.addEventListener('click', ()=>{ if(Game.elixir >= tpl.cost){ Game.selectedCard = tpl; highlightSelected(d);} else log('Not enough elixir'); });
+      deckEl.appendChild(d);
+    }
+  }
+  function highlightSelected(node){
+    Array.from(deckEl.children).forEach(c=> c.style.boxShadow = '');
+    if(node) node.style.boxShadow = '0 0 0 3px rgba(50,200,255,0.14)';
+  }
+  function updateElixirUI(){
+    const pct = Math.round((Game.elixir / Game.elixirMax) * 100);
+    document.getElementById('elixirFill').style.width = pct + '%';
+    document.getElementById('elixirText').innerText = 'Elixir: ' + Math.floor(Game.elixir) + ' / ' + Game.elixirMax;
+    Array.from(deckEl.children).forEach((c,i)=>{
+      const tpl = Game.deckTemplates[i];
+      if(Game.elixir < tpl.cost) c.classList.add('disabled'); else c.classList.remove('disabled');
+    });
+  }
+
+  // -------------------- Cleanup helper --------------------
+  function cleanupDead(){
+    for(let i = World.troops.length - 1; i >= 0; --i){
+      if(World.troops[i].hp <= 0){ scene.remove(World.troops[i].mesh); World.troops.splice(i,1); }
+    }
+    for(let i = World.projectiles.length -1; i>=0; --i){ if(World.projectiles[i].dead) World.projectiles.splice(i,1); }
+  }
+
+  // -------------------- Main loop --------------------
+  let last = now();
+  function animate(){
+    requestAnimationFrame(animate);
+    const t = now();
+    const dt = clamp(t - last, 0, 0.06);
+    last = t;
+    if(!Game.paused){
+      Game.elixir = clamp(Game.elixir + Game.elixirRate * dt, 0, Game.elixirMax);
+      updateElixirUI();
+      aiTick(dt);
+      for(const tw of World.towers) tw.tryFire(dt);
+      updateProjectiles(dt);
+      for(const u of World.troops){ u.update(dt); u.updateVisual(); }
+      cleanupDead();
+      // check win: kings
+      const pKing = World.towers.find(t=>t.team==='player' && t.kind==='king');
+      const eKing = World.towers.find(t=>t.team==='enemy' && t.kind==='king');
+      if(pKing && pKing.hp <= 0){ Game.paused = true; log('Enemy wins!'); }
+      if(eKing && eKing.hp <= 0){ Game.paused = true; log('Player wins!'); }
+    }
+    renderer.render(scene, camera);
+  }
+
+  // -------------------- Buttons --------------------
+  document.getElementById('btnPause').addEventListener('click', ()=>{ Game.paused = !Game.paused; document.getElementById('btnPause').innerText = Game.paused ? 'Resume' : 'Pause'; });
+  document.getElementById('btnStep').addEventListener('click', ()=>{ if(Game.paused){ Game.paused = false; last = now(); setTimeout(()=>{ Game.paused = true; }, 30);} });
+  document.getElementById('btnReset').addEventListener('click', ()=>{
+    for(const t of World.towers){ try{ scene.remove(t.mesh); scene.remove(t.hpBar); }catch(e){} }
+    for(const u of World.troops){ try{ scene.remove(u.mesh); }catch(e){} }
+    for(const p of World.projectiles){ try{ scene.remove(p.mesh); }catch(e){} }
+    World.troops.length = 0; World.towers.length = 0; World.projectiles.length = 0;
+    Game.elixir = 4; Game.ai.elixir = 4; updateElixirUI();
+    spawnAllTowers(); buildDeckUI(); Game.selectedCard = null; highlightSelected(null); createWaypointMarkers();
+    log('World reset');
+  });
+
+  // -------------------- Init --------------------
+  Game.recomputePlacementZones(); spawnAllTowers(); buildDeckUI(); updateElixirUI(); animate();
+  log('MegaFixes 3D — waypoints added (visible) — spawn anywhere on player half and troops follow pre->post->tower.');
+
+  // expose for debugging
+  window.MegaFixes3D = { scene, camera, renderer, World, Game, Inspector, Lanes, WaypointMarkers };
+
   </script>
 </body>
 </html>
