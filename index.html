@@ -1,613 +1,151 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<title>MegaFixes 3D — Waypoints Visible (Debug)</title>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Clash Royale — Full 3D (Bridges + Combat)</title>
 <style>
-  html,body { height:100%; margin:0; background:#071019; color:#e6eef6; font-family:Inter, Arial, sans-serif; }
-  #ui { position: absolute; right:12px; top:12px; width:380px; background: rgba(6,12,16,0.78); padding:12px; border-radius:8px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); z-index:10;}
-  #canvasHolder { width: calc(100% - 420px); height: 100vh; display:inline-block; vertical-align:top; }
-  #controls { margin-top:8px; display:flex; gap:8px; }
-  .btn{ padding:8px 10px; border-radius:8px; background:#0b2b2a; border:1px solid rgba(255,255,255,0.03); color:#dff7ff; cursor:pointer; }
-  label{display:block;font-size:12px;color:#9fb3bf;margin-top:8px}
-  input[type=range]{width:100%}
-  #log{margin-top:8px;height:160px;overflow:auto;background:#021016;padding:8px;border-radius:6px;font-family:monospace;font-size:12px}
+  html,body{height:100%;margin:0;background:#071019;color:#e6eef6;font-family:Inter, Arial, sans-serif}
+  #ui{position:absolute;right:12px;top:12px;width:380px;background:rgba(6,12,16,0.78);padding:12px;border-radius:8px;z-index:10}
+  #canvasHolder{width:calc(100% - 420px);height:100vh;display:inline-block}
+  .btn{padding:8px 10px;border-radius:8px;background:#0b2b2a;border:1px solid rgba(255,255,255,0.03);color:#dff7ff;cursor:pointer}
   .muted{color:#9fb3bf;font-size:12px}
   .deck{display:flex;gap:8px;margin-top:8px}
   .card{width:76px;height:100px;background:#e8eedc;color:#082;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;cursor:pointer}
   .card.disabled{opacity:0.5;pointer-events:none}
-  #elixirBar{height:18px;background:#042; border-radius:9px; margin-top:6px; overflow:hidden}
-  #elixirFill{height:100%; width:0%; background:linear-gradient(180deg,#ffe26b,#ffc83a)}
-  .small{font-size:12px;color:#9fb3bf}
+  #elixirBar{height:18px;background:#042;border-radius:9px;margin-top:6px;overflow:hidden}
+  #elixirFill{height:100%;width:0%;background:linear-gradient(180deg,#ffe26b,#ffc83a)}
+  #log{margin-top:8px;height:160px;overflow:auto;background:#021016;padding:8px;border-radius:6px;font-family:monospace;font-size:12px}
 </style>
 </head>
 <body>
   <div id="canvasHolder"></div>
-
   <div id="ui">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <strong>MegaFixes 3D — Waypoints Debug</strong>
-      <div class="small muted">Blue = pre-bridge, Red = post-bridge (now aligned with bridge entrances)</div>
-    </div>
-
-    <div id="controls">
-      <button id="btnPause" class="btn">Pause</button>
-      <button id="btnStep" class="btn">Step</button>
-      <button id="btnReset" class="btn">Reset</button>
-    </div>
-
-    <label>Placement Area Multiplier: <span id="pmVal">1.4</span></label>
-    <input id="placementMul" type="range" min="0.6" max="2.5" step="0.05" value="1.4"/>
-
-    <label>Princess Nerf — Damage <span id="dVal">0.75</span> Range <span id="rVal">0.9</span> Rate <span id="rateVal">0.95</span> HP <span id="hpVal">0.95</span></label>
-    <input id="dmgMul" type="range" min="0.2" max="2.0" step="0.01" value="0.75"/>
-    <input id="rangeMul" type="range" min="0.2" max="2.0" step="0.01" value="0.9"/>
-    <input id="rateMul" type="range" min="0.2" max="3.0" step="0.01" value="0.95"/>
-    <input id="hpMul" type="range" min="0.2" max="2.0" step="0.01" value="0.95"/>
-
-    <label><input type="checkbox" id="chkKingWake" checked/> King tower only wakes after a Princess dies</label>
-
-    <label>Deck / Elixir</label>
+    <div style="display:flex;justify-content:space-between;align-items:center"><strong>Clash Royale — Full 3D</strong><div class="muted">Bridges aligned, combat enabled</div></div>
+    <div style="margin-top:8px;display:flex;gap:8px"><button id="btnPause" class="btn">Pause</button><button id="btnReset" class="btn">Reset</button></div>
+    <label class="muted" style="margin-top:8px">Deck / Elixir</label>
     <div id="elixirBar"><div id="elixirFill"></div></div>
-    <div class="small muted" id="elixirText">Elixir: 0 / 10</div>
-
+    <div class="muted" id="elixirText">Elixir: 0 / 10</div>
     <div class="deck" id="deck"></div>
-
-    <label class="muted">Click a card, then click anywhere on your side to deploy (free placement).</label>
-
+    <label class="muted">Click a card, then click anywhere on your side to deploy.</label>
     <div id="log"></div>
   </div>
 
-  <!-- Three.js -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-
   <script>
-  /******************************************************************
-   * MegaFixes 3D — Waypoints Visible (Bridge-aligned post-bridge)
-   * - Post-bridge (red) waypoints now sit on the bridge entrances (x=-64, x=64, z=0)
-   * - Troops path: spawn -> pre-bridge -> post-bridge (on bridge) -> enemy approach -> enemy spawn
-   * - Everything else preserved (tower targeting, projectiles, UI).
-   ******************************************************************/
+  // Full 3D version: bridges aligned, troops attack each other & towers, markers hidden
+  // NOTE: single-file for easy GitHub drop-in (index.html)
 
-  // -------------------- Utilities & small helpers --------------------
+  // ---- Utilities ----
   const logEl = document.getElementById('log');
-  function log(...args){
-    const s = new Date().toLocaleTimeString() + '  ' + args.map(a=> (typeof a==='object'?JSON.stringify(a):a)).join(' ');
-    logEl.innerText = s + '\n' + logEl.innerText;
-    if(logEl.innerText.length > 20000) logEl.innerText = logEl.innerText.substr(0,20000);
-    console.log(...args);
-  }
-  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
-  function vdist(a,b){ const dx=a.x-b.x, dz=a.z-b.z; return Math.sqrt(dx*dx + dz*dz); }
-  function now(){ return performance.now() / 1000; }
-  function randRange(a,b){ return a + Math.random()*(b-a); }
+  function log(){ const s = new Date().toLocaleTimeString() + '  ' + Array.from(arguments).map(a=>typeof a==='object'?JSON.stringify(a):a).join(' '); logEl.innerText = s + '\n' + logEl.innerText; }
+  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  function vdist(a,b){const dx=a.x-b.x, dz=a.z-b.z; return Math.sqrt(dx*dx+dz*dz);}  
+  function now(){return performance.now()/1000;}
 
-  // -------------------- Three.js setup --------------------
+  // ---- Three.js setup ----
   const container = document.getElementById('canvasHolder');
-  const W = Math.max(900, window.innerWidth - 420);
-  const H = window.innerHeight;
+  const W = Math.max(900, window.innerWidth - 420); const H = window.innerHeight;
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(50, W/H, 0.1, 2000);
-  camera.position.set(0, 150, 280);
-  camera.lookAt(0, 0, 0);
-  const renderer = new THREE.WebGLRenderer({antialias:true});
-  renderer.setSize(W,H);
-  renderer.setPixelRatio(window.devicePixelRatio || 1);
-  container.appendChild(renderer.domElement);
+  const camera = new THREE.PerspectiveCamera(50, W/H, 0.1, 2000); camera.position.set(0,160,320); camera.lookAt(0,0,0);
+  const renderer = new THREE.WebGLRenderer({antialias:true}); renderer.setSize(W,H); renderer.setPixelRatio(window.devicePixelRatio||1); container.appendChild(renderer.domElement);
+  const ambient = new THREE.AmbientLight(0xffffff,0.6); scene.add(ambient); const dir = new THREE.DirectionalLight(0xffffff,0.6); dir.position.set(100,200,100); scene.add(dir);
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6); scene.add(ambient);
-  const dir = new THREE.DirectionalLight(0xffffff, 0.6); dir.position.set(100,200,100); scene.add(dir);
-
-  // -------------------- Inspector / UI values --------------------
-  const Inspector = {
-    placementMul: parseFloat(document.getElementById('placementMul').value),
-    dmgMul: parseFloat(document.getElementById('dmgMul').value),
-    rangeMul: parseFloat(document.getElementById('rangeMul').value),
-    rateMul: parseFloat(document.getElementById('rateMul').value),
-    hpMul: parseFloat(document.getElementById('hpMul').value),
-    kingWakeRule: document.getElementById('chkKingWake').checked
-  };
-
-  document.getElementById('placementMul').addEventListener('input', e=>{
-    Inspector.placementMul = parseFloat(e.target.value);
-    document.getElementById('pmVal').innerText = Inspector.placementMul.toFixed(2);
-    Game.recomputePlacementZones();
-  });
-  function wireRange(id, labelId, key){
-    document.getElementById(id).addEventListener('input', e=>{
-      Inspector[key] = parseFloat(e.target.value);
-      document.getElementById(labelId).innerText = Inspector[key].toFixed(2);
-      Game.applyTowerMultipliers();
-    });
-  }
-  wireRange('dmgMul','dVal','dmgMul');
-  wireRange('rangeMul','rVal','rangeMul');
-  wireRange('rateMul','rateVal','rateMul');
-  wireRange('hpMul','hpVal','hpMul');
-  document.getElementById('chkKingWake').addEventListener('change', e=>{
-    Inspector.kingWakeRule = e.target.checked;
-  });
-
-  // -------------------- Arena geometry & lane waypoints --------------------
-  const ARENA_W = 220, ARENA_H = 340, RIVER_H = 36, BRIDGE_W = 44;
+  // ---- Arena & lanes ----
+  const ARENA_W=220, ARENA_H=340, RIVER_H=36, BRIDGE_W=44;
   const arenaGroup = new THREE.Group(); scene.add(arenaGroup);
-
   function buildArena(){
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_W, ARENA_H), new THREE.MeshLambertMaterial({color:0x184b2f}));
-    floor.rotation.x = -Math.PI/2; arenaGroup.add(floor);
-    const river = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_W, RIVER_H), new THREE.MeshLambertMaterial({color:0x1e6b88}));
-    river.position.z = 0; river.rotation.x = -Math.PI/2; river.position.y = 0.02; arenaGroup.add(river);
-    const bridgeGeom = new THREE.BoxGeometry(BRIDGE_W, 2, 72);
-    const bmat = new THREE.MeshLambertMaterial({color:0x7d5a34});
-    const b1 = new THREE.Mesh(bridgeGeom, bmat); b1.position.set(-64,0.5,0); arenaGroup.add(b1);
-    const b2 = new THREE.Mesh(bridgeGeom, bmat); b2.position.set(64,0.5,0); arenaGroup.add(b2);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_W,ARENA_H), new THREE.MeshLambertMaterial({color:0x184b2f})); floor.rotation.x=-Math.PI/2; arenaGroup.add(floor);
+    const river = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_W,RIVER_H), new THREE.MeshLambertMaterial({color:0x1e6b88})); river.position.z=0; river.rotation.x=-Math.PI/2; river.position.y=0.02; arenaGroup.add(river);
+    const bridgeGeom=new THREE.BoxGeometry(BRIDGE_W,2,72); const bmat=new THREE.MeshLambertMaterial({color:0x7d5a34});
+    const b1=new THREE.Mesh(bridgeGeom,bmat); b1.position.set(-64,0.5,0); arenaGroup.add(b1);
+    const b2=new THREE.Mesh(bridgeGeom,bmat); b2.position.set(64,0.5,0); arenaGroup.add(b2);
   }
   buildArena();
 
-  // Waypoint structure: [spawnAnchor, preBridge, postBridge, enemyApproach, enemySpawn]
-  // IMPORTANT: postBridge now aligns with the bridge entrance X coords (-64 and 64) and z = 0
+  // Waypoints: spawn -> preBridge -> postBridge(on bridge) -> enemy approach -> enemy spawn
   const Lanes = {
-    left: [
-      new THREE.Vector3(-64, 0, ARENA_H/2 - 36),    // spawnAnchor (player spawn region)
-      new THREE.Vector3(-64, 0, 40),                // PRE-BRIDGE (your side)  (blue)
-      new THREE.Vector3(-64, 0, 0),                 // POST-BRIDGE (on the bridge entrance) (red) <-- FIXED
-      new THREE.Vector3(-64, 0, -40),               // enemy approach
-      new THREE.Vector3(-64, 0, -ARENA_H/2 + 36)    // enemy spawn anchor
-    ],
-    right: [
-      new THREE.Vector3(64, 0, ARENA_H/2 - 36),
-      new THREE.Vector3(64, 0, 40),
-      new THREE.Vector3(64, 0, 0),                  // POST-BRIDGE (on the bridge entrance) (red) <-- FIXED
-      new THREE.Vector3(64, 0, -40),
-      new THREE.Vector3(64, 0, -ARENA_H/2 + 36)
-    ]
+    left: [ new THREE.Vector3(-64,0,ARENA_H/2-36), new THREE.Vector3(-64,0,40), new THREE.Vector3(-64,0,0), new THREE.Vector3(-64,0,-40), new THREE.Vector3(-64,0,-ARENA_H/2+36) ],
+    right:[ new THREE.Vector3(64,0,ARENA_H/2-36), new THREE.Vector3(64,0,40), new THREE.Vector3(64,0,0), new THREE.Vector3(64,0,-40), new THREE.Vector3(64,0,-ARENA_H/2+36) ]
   };
 
-  // debug waypoint markers (visible)
-  const WaypointMarkers = { left: {pre:null, post:null}, right: {pre:null, post:null} };
-  function createWaypointMarkers(){
-    // remove old
-    for(const side of ['left','right']){
-      if(WaypointMarkers[side].pre){ scene.remove(WaypointMarkers[side].pre); WaypointMarkers[side].pre = null; }
-      if(WaypointMarkers[side].post){ scene.remove(WaypointMarkers[side].post); WaypointMarkers[side].post = null; }
-    }
-    // pre-bridge: blue spheres, post-bridge: red spheres
-    const preGeom = new THREE.SphereGeometry(3.4, 12, 12);
-    const preMat = new THREE.MeshLambertMaterial({color:0x2ea0ff, emissive:0x112233});
-    const postGeom = new THREE.SphereGeometry(3.4, 12, 12);
-    const postMat = new THREE.MeshLambertMaterial({color:0xff4c4c, emissive:0x331111});
-    WaypointMarkers.left.pre = new THREE.Mesh(preGeom, preMat); WaypointMarkers.left.pre.position.copy(Lanes.left[1]); WaypointMarkers.left.pre.position.y = 3.5; scene.add(WaypointMarkers.left.pre);
-    WaypointMarkers.left.post = new THREE.Mesh(postGeom, postMat); WaypointMarkers.left.post.position.copy(Lanes.left[2]); WaypointMarkers.left.post.position.y = 3.5; scene.add(WaypointMarkers.left.post);
-    WaypointMarkers.right.pre = new THREE.Mesh(preGeom, preMat); WaypointMarkers.right.pre.position.copy(Lanes.right[1]); WaypointMarkers.right.pre.position.y = 3.5; scene.add(WaypointMarkers.right.pre);
-    WaypointMarkers.right.post = new THREE.Mesh(postGeom, postMat); WaypointMarkers.right.post.position.copy(Lanes.right[2]); WaypointMarkers.right.post.position.y = 3.5; scene.add(WaypointMarkers.right.post);
-  }
-  createWaypointMarkers();
-
-  // -------------------- World / pools --------------------
+  // ---- Pools ----
   const World = { troops: [], towers: [], projectiles: [] };
 
-  // -------------------- Helpers: healthbar, simple meshes --------------------
-  function createHealthBar(){
-    const group = new THREE.Group();
-    const back = new THREE.Mesh(new THREE.PlaneGeometry(22,3), new THREE.MeshBasicMaterial({color:0x000000, transparent:true, opacity:0.6}));
-    const front = new THREE.Mesh(new THREE.PlaneGeometry(20,2.2), new THREE.MeshBasicMaterial({color:0x33ff88}));
-    front.name = 'hpFront'; front.position.z = 0.01; back.add(front); group.add(back);
-    group.position.y = 36;
-    return group;
-  }
-  function towerMesh(kind, team){
-    const color = (team === 'player') ? 0x2f7a47 : 0x7a2f2f;
-    const geo = new THREE.CylinderGeometry(12, 12, 28, 12);
-    return new THREE.Mesh(geo, new THREE.MeshLambertMaterial({color}));
-  }
+  // ---- Helpers ----
+  function createHealthBar(){ const g=new THREE.Group(); const back=new THREE.Mesh(new THREE.PlaneGeometry(22,3),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.6})); const front=new THREE.Mesh(new THREE.PlaneGeometry(20,2.2),new THREE.MeshBasicMaterial({color:0x33ff88})); front.name='hpFront'; front.position.z=0.01; back.add(front); g.add(back); g.position.y=36; return g; }
+  function towerMesh(team){ const color = team==='player'?0x2f7a47:0x7a2f2f; return new THREE.Mesh(new THREE.CylinderGeometry(12,12,28,12), new THREE.MeshLambertMaterial({color})); }
 
-  // -------------------- Tower class --------------------
-  function Tower(opts){
-    this.team = opts.team;
-    this.kind = opts.kind;
-    this.pos = opts.pos.clone();
-    this.baseHP = (opts.kind === 'king') ? 1600 : 1000;
-    this.hp = this.baseHP;
-    // TUNED values
-    this.baseDamage = (opts.kind === 'king') ? 90 : 45;
-    this.baseRange = (opts.kind === 'king') ? 140 : 110; // tightened
-    this.baseFireRate = 1.0;
-    this.damage = this.baseDamage;
-    this.range = this.baseRange;
-    this.fireRate = this.baseFireRate;
-    this.cooldown = 0;
-    this.active = true;
-    this.mesh = towerMesh(this.kind, this.team);
-    this.mesh.position.set(this.pos.x, 14, this.pos.z);
-    this.hpBar = createHealthBar();
-    this.hpBar.position.set(this.pos.x, 36, this.pos.z);
-    scene.add(this.mesh); scene.add(this.hpBar);
-    this.id = this.team + '-' + this.kind;
-  }
-
-  Tower.prototype.updateVisual = function(){
-    this.mesh.position.set(this.pos.x, 14, this.pos.z);
-    this.hpBar.position.set(this.pos.x, 36, this.pos.z);
-    const front = this.hpBar.children[0].getObjectByName('hpFront');
-    if(front){
-      const pct = clamp(this.hp / this.baseHP, 0, 1);
-      front.scale.x = pct; front.position.x = - (20 * (1 - pct)) / 2;
-    }
-    if(this.hp <= 0){ this.mesh.material.color.setHex(0x333333); this.active = false; }
+  // ---- Tower class ----
+  function Tower(opts){ this.team=opts.team; this.kind=opts.kind; this.pos=opts.pos.clone(); this.baseHP=(opts.kind==='king')?1600:1000; this.hp=this.baseHP; this.baseDamage=(opts.kind==='king')?90:45; this.baseRange=(opts.kind==='king')?140:110; this.baseFireRate=1.0; this.damage=this.baseDamage; this.range=this.baseRange; this.fireRate=this.baseFireRate; this.cooldown=0; this.mesh=towerMesh(this.team); this.mesh.position.set(this.pos.x,14,this.pos.z); this.hpBar=createHealthBar(); this.hpBar.position.set(this.pos.x,36,this.pos.z); scene.add(this.mesh); scene.add(this.hpBar); this.id=this.team+'-'+this.kind; }
+  Tower.prototype.updateVisual=function(){ const front=this.hpBar.children[0].getObjectByName('hpFront'); if(front){ const pct=clamp(this.hp/this.baseHP,0,1); front.scale.x=pct; front.position.x=- (20*(1-pct))/2; } if(this.hp<=0){ this.mesh.material.color.setHex(0x333333); } };
+  Tower.prototype.canTarget=function(u){ if(!u || u.hp<=0) return false; if(Math.sign(this.pos.z)!==Math.sign(u.mesh.position.z)) return false; // same side
+    // enforce: only target troops that crossed bridge OR those touching tower
+    const d = vdist(this.pos, u.mesh.position); const touchThresh = (u.size||6) + 12; if(!u.crossedBridge && d>this.range && d>touchThresh) return false; return d<=this.range || d<=touchThresh; };
+  Tower.prototype.tryFire=function(dt){ if(this.hp<=0) return; if(this.cooldown>0){ this.cooldown-=dt; return; } if(this.kind==='king'){ const teamPr = World.towers.filter(t=>t.team===this.team && t.kind==='princess'); if(teamPr.some(p=>p.hp>0)) return; }
+    let best=null, bd=Infinity; for(const u of World.troops){ if(u.team===this.team||u.hp<=0) continue; if(!this.canTarget(u)) continue; const d=vdist(this.pos,u.mesh.position); if(d<bd){bd=d;best=u;} }
+    if(best){ spawnProjectile(this.pos.clone(), best, this.damage, this.team); this.cooldown = Math.max(0.02, 1.0/this.fireRate); }
   };
 
-  // Only target troops that have crossed the bridge (troop.crossedBridge = true) AND that are on the same side (z sign).
-  // But we'll also allow 'touching' troops even if they haven't flipped crossedBridge yet (prevents odd ignores).
-  Tower.prototype.canTargetByDistanceAndSide = function(candidate){
-    if(!candidate) return false;
-    if(candidate.hp <= 0) return false;
-    // require same side sign (king/princess are placed with z sign)
-    if(Math.sign(this.pos.z) !== Math.sign(candidate.mesh.position.z)) return false;
-    return true;
+  // ---- Projectiles ----
+  function spawnProjectile(fromVec, targetUnit, power, team){ const geo=new THREE.SphereGeometry(1.8,8,8); const mat=new THREE.MeshBasicMaterial({color:team==='player'?0x99ffcc:0xffc0c0}); const mesh=new THREE.Mesh(geo, mat); mesh.position.copy(fromVec); mesh.position.y=10; scene.add(mesh); World.projectiles.push({mesh,target:targetUnit,power,speed:220,dead:false,team}); }
+  function updateProjectiles(dt){ for(const p of World.projectiles){ if(p.dead) continue; if(!p.target||p.target.hp<=0){ p.dead=true; scene.remove(p.mesh); continue;} const tpos = p.target.mesh? p.target.mesh.position : p.target.pos; const dx=tpos.x-p.mesh.position.x, dz=tpos.z-p.mesh.position.z; const d=Math.sqrt(dx*dx+dz*dz); if(d<3){ p.target.hp=Math.max(0,p.target.hp-p.power); p.dead=true; scene.remove(p.mesh); log('Hit',p.target.id||p.target.name,'hp->',Math.round(p.target.hp)); } else { const nx=dx/d, nz=dz/d; const move=p.speed*dt; p.mesh.position.x+=nx*move; p.mesh.position.z+=nz*move; } } for(let i=World.projectiles.length-1;i>=0;--i) if(World.projectiles[i].dead) World.projectiles.splice(i,1); }
+
+  // ---- Troop class ----
+  function Troop(opts){ this.team=opts.team; this.name=opts.template.name; this.maxHp=opts.template.hp; this.hp=this.maxHp; this.dmg=opts.template.dmg; this.speed=opts.template.speed/60; this.range=opts.template.range/60; this.projectile=!!opts.template.projectile; this.size=opts.template.size||6; this.path=opts.path.map(p=>p.clone()); this.waypointIndex=(this.team==='player')?1:(this.path.length-2); this.crossedBridge=false; this.mesh=new THREE.Mesh(new THREE.BoxGeometry(this.size,this.size,this.size), new THREE.MeshLambertMaterial({color:this.team==='player'?0xffe0b0:0xffb0b0})); this.mesh.position.copy(opts.pos); this.mesh.position.y=this.size/2; const hp=createHealthBar(); this.mesh.add(hp); hp.position.set(0,this.size+6,0); this.target=null; this.state='moving'; this.attackCooldown=0; this.id='troop-'+Math.random().toString(36).substr(2,6); scene.add(this.mesh); World.troops.push(this); }
+  Troop.prototype.updateVisual=function(){ const front=this.mesh.children[0].getObjectByName('hpFront'); if(front){ const pct=clamp(this.hp/this.maxHp,0,1); front.scale.x=pct; front.position.x=-(20*(1-pct))/2; } };
+  Troop.prototype.findTarget=function(){ let best=null,bd=Infinity; for(const u of World.troops){ if(u.team===this.team||u.hp<=0) continue; const d=vdist(this.mesh.position,u.mesh.position); if(d<bd){bd=d;best=u;} } if(best) return best; for(const t of World.towers){ if(t.team===this.team||t.hp<=0) continue; const d2=vdist(this.mesh.position,t.pos); if(d2<bd){bd=d2;best=t;} } return best; };
+  Troop.prototype.update=function(dt){ if(this.hp<=0) return; if(this.target&&this.target.hp<=0){ this.target=null; this.state='moving'; }
+    if(!this.target) this.target=this.findTarget();
+    // update crossedBridge using world z vs post-bridge z
+    if(this.path&&this.path[2]){ const postZ=this.path[2].z; if(this.team==='player'){ if(this.mesh.position.z<=postZ+1) this.crossedBridge=true; } else { if(this.mesh.position.z>=postZ-1) this.crossedBridge=true; } }
+    // combat vs troops (melee)
+    const enemies = World.troops.filter(t=>t.team!==this.team&&t.hp>0);
+    for(const e of enemies){ const d=vdist(this.mesh.position,e.mesh.position); if(d<= (this.size + e.size)/2 + 1){ if(this.attackCooldown<=0){ this.attackCooldown=1.0; e.hp=Math.max(0,e.hp-this.dmg);} return; } }
+    // combat vs towers
+    for(const tw of World.towers){ if(tw.team===this.team||tw.hp<=0) continue; const d=vdist(this.mesh.position,tw.pos); if(d<= (this.size/2) + 12 + 1){ if(this.attackCooldown<=0){ this.attackCooldown=1.0; tw.hp=Math.max(0,tw.hp-this.dmg);} return; } }
+    // movement
+    if(this.state==='moving'){
+      if(this.waypointIndex>=this.path.length){ if(this.target) this.moveToward(this.target.mesh?this.target.mesh.position:this.target.pos,dt); }
+      else{ const wp=this.path[this.waypointIndex]; const dwp=vdist(this.mesh.position,wp); if(dwp<2) this.waypointIndex++; else this.moveToward(wp,dt); }
+    }
+    if(this.attackCooldown>0) this.attackCooldown-=dt;
   };
+  Troop.prototype.moveToward=function(vec,dt){ const cur=this.mesh.position; const dx=vec.x-cur.x, dz=vec.z-cur.z; const d=Math.sqrt(dx*dx+dz*dz); if(d<0.001) return; const nx=dx/d, nz=dz/d; const move=Math.min(this.speed*dt*60,d); this.mesh.position.x+=nx*move; this.mesh.position.z+=nz*move; this.mesh.position.y=this.size/2; };
 
-  Tower.prototype.tryFire = function(dt){
-    if(this.hp <= 0) return;
-    if(this.cooldown > 0){ this.cooldown -= dt; return; }
-    if(this.kind === 'king' && Inspector.kingWakeRule){
-      const teamPrincesses = World.towers.filter(t=>t.team===this.team && t.kind==='princess');
-      const anyAlive = teamPrincesses.some(p=>p.hp > 0);
-      if(anyAlive) return; // king sleeping
-    }
+  // ---- Game & AI ----
+  const Game = { elixir:4, elixirMax:10, elixirRate:1, paused:false, placementZone:{xMin:-80,xMax:80,zMin:ARENA_H/2-140,zMax:ARENA_H/2-30}, deckTemplates:[ {name:'Knight',hp:420,dmg:48,speed:45,range:8,projectile:false,cost:3,size:8},{name:'Archer',hp:200,dmg:28,speed:55,range:120,projectile:true,cost:3,size:6},{name:'Giant',hp:1100,dmg:62,speed:32,range:12,projectile:false,cost:5,size:12},{name:'Hog',hp:320,dmg:60,speed:110,range:10,projectile:false,cost:4,size:8} ], selectedCard:null, ai:{elixir:4,spawnIntervalMin:1.2,spawnIntervalMax:3.0,lastSpawnAttempt:0} };
 
-    let best = null, bd = Infinity;
-    for(const u of World.troops){
-      if(u.team === this.team) continue;
-      if(u.hp <= 0) continue;
-      if(!this.canTargetByDistanceAndSide(u)) continue;
+  function spawnAllTowers(){ for(const t of World.towers){ try{ scene.remove(t.mesh); scene.remove(t.hpBar);}catch(e){} } World.towers.length=0; const pLeft=new Tower({team:'player',kind:'princess',pos:new THREE.Vector3(-64,0,ARENA_H/2-80)}); const pRight=new Tower({team:'player',kind:'princess',pos:new THREE.Vector3(64,0,ARENA_H/2-80)}); const pKing=new Tower({team:'player',kind:'king',pos:new THREE.Vector3(0,0,ARENA_H/2-40)}); const eLeft=new Tower({team:'enemy',kind:'princess',pos:new THREE.Vector3(-64,0,-ARENA_H/2+80)}); const eRight=new Tower({team:'enemy',kind:'princess',pos:new THREE.Vector3(64,0,-ARENA_H/2+80)}); const eKing=new Tower({team:'enemy',kind:'king',pos:new THREE.Vector3(0,0,-ARENA_H/2+40)}); World.towers.push(pLeft,pRight,pKing,eLeft,eRight,eKing); for(const t of World.towers) t.updateVisual(); }
 
-      const d = vdist(this.pos, u.mesh.position);
-      // allow targeting if troop already crossedBridge OR if d is within immediate touching distance (so towers don't completely ignore troops that are essentially on top of tower)
-      const touchingThreshold = (u.size || 6) + 12; // troop size + tower half-size approx
-      if(!u.crossedBridge && d > this.range && d > touchingThreshold) continue;
-      if(d <= this.range && d < bd){
-        bd = d; best = u;
-      } else if(d <= touchingThreshold && d < bd){
-        // immediate touch: still allow
-        bd = d; best = u;
-      }
-    }
+  Game.recomputePlacementZones=function(){ const m=1.4; const baseW=150, baseH=120; const w=baseW*m,h=baseH*m; this.placementZone.xMin=-w/2; this.placementZone.xMax=w/2; this.placementZone.zMin=ARENA_H/2-h-10; this.placementZone.zMax=ARENA_H/2-30; };
+  function spawnTroopFromCard(card, worldPos){ if(worldPos.z<Game.placementZone.zMin||worldPos.z>Game.placementZone.zMax||worldPos.x<Game.placementZone.xMin||worldPos.x>Game.placementZone.xMax){ log('Placement outside allowed area'); return; } if(Game.elixir<card.cost){ log('Not enough elixir'); return; } Game.elixir-=card.cost; updateElixirUI(); const laneName = worldPos.x<0?'left':'right'; const lane=Lanes[laneName]; const spawnPos=worldPos.clone(); spawnPos.y=0; spawnPos.z=clamp(spawnPos.z,Game.placementZone.zMin,Game.placementZone.zMax); const tr=new Troop({team:'player',template:card,pos:spawnPos,path:lane}); tr.name=card.name; tr.maxHp=card.hp; tr.hp=card.hp; tr.dmg=card.dmg; tr.speed=card.speed; tr.range=card.range; tr.projectile=!!card.projectile; log('Player spawned',tr.name); }
 
-    if(best){
-      spawnProjectile(this.pos.clone(), best, this.damage, this.team);
-      // cooldown based on fireRate (fireRate is attacks per second)
-      this.cooldown = Math.max(0.02, 1.0 / (this.fireRate || 1.0));
-    }
-  };
+  function aiTick(dt){ Game.ai.elixir = clamp(Game.ai.elixir + Game.elixirRate*dt,0,Game.elixirMax); Game.ai.lastSpawnAttempt += dt; const next = randRange(Game.ai.spawnIntervalMin, Game.ai.spawnIntervalMax); if(Game.ai.lastSpawnAttempt >= next){ Game.ai.lastSpawnAttempt = 0; const candidate = Game.deckTemplates[Math.floor(Math.random()*Game.deckTemplates.length)]; if(Game.ai.elixir >= candidate.cost){ const laneChoice = Math.random()<0.5?'left':'right'; const lane=Lanes[laneChoice]; const spawnPos = lane[lane.length-1].clone(); spawnPos.x += (Math.random()-0.5)*20; aiSpawnTroop(candidate,spawnPos,lane); Game.ai.elixir -= candidate.cost; log('AI spawned',candidate.name,'on',laneChoice); } } }
+  function aiSpawnTroop(card, worldPos, path){ const spawnPos = worldPos.clone(); spawnPos.y=0; const t = new Troop({team:'enemy',template:card,pos:spawnPos,path:path}); t.name=card.name; t.maxHp=card.hp; t.hp=card.hp; t.dmg=card.dmg; t.speed=card.speed; t.range=card.range; t.projectile=!!card.projectile; }
 
-  // -------------------- Projectiles --------------------
-  function spawnProjectile(fromVec, targetUnit, power, team){
-    const geo = new THREE.SphereGeometry(1.8,8,8);
-    const mat = new THREE.MeshBasicMaterial({color: team === 'player' ? 0x99ffcc : 0xffc0c0});
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.copy(fromVec); mesh.position.y = 10;
-    scene.add(mesh);
-    const proj = { mesh, target: targetUnit, power, speed: 220, dead:false, team };
-    World.projectiles.push(proj);
-  }
+  // ---- Input ----
+  const raycaster = new THREE.Raycaster(); const mouse = new THREE.Vector2(); function screenToWorld(x,y){ const rect=renderer.domElement.getBoundingClientRect(); mouse.x=((x-rect.left)/rect.width)*2-1; mouse.y= -((y-rect.top)/rect.height)*2+1; raycaster.setFromCamera(mouse,camera); const plane=new THREE.Plane(new THREE.Vector3(0,1,0),0); const p=new THREE.Vector3(); raycaster.ray.intersectPlane(plane,p); return p; }
+  renderer.domElement.addEventListener('pointerdown',ev=>{ const p=screenToWorld(ev.clientX,ev.clientY); if(Game.selectedCard){ spawnTroopFromCard(Game.selectedCard,p); Game.selectedCard=null; highlightSelected(null);} });
 
-  function updateProjectiles(dt){
-    for(const p of World.projectiles){
-      if(p.dead) continue;
-      if(!p.target || p.target.hp <= 0){ p.dead = true; scene.remove(p.mesh); continue; }
-      const tpos = p.target.mesh ? p.target.mesh.position : p.target.pos;
-      const dx = tpos.x - p.mesh.position.x, dz = tpos.z - p.mesh.position.z;
-      const d = Math.sqrt(dx*dx + dz*dz);
-      if(d < 3){
-        p.target.hp = Math.max(0, p.target.hp - p.power);
-        p.dead = true; scene.remove(p.mesh);
-        log('Projectile hit', (p.target.team? p.target.team + '-' + (p.target.name||p.target.id) : p.target.id), 'hp->', Math.round(p.target.hp));
-      } else {
-        const nx = dx / d, nz = dz / d;
-        const move = p.speed * dt;
-        p.mesh.position.x += nx * move; p.mesh.position.z += nz * move;
-      }
-    }
-    for(let i = World.projectiles.length -1; i>=0; --i) if(World.projectiles[i].dead){ World.projectiles.splice(i,1); }
-  }
+  // ---- Deck UI ----
+  const deckEl=document.getElementById('deck'); function buildDeckUI(){ deckEl.innerHTML=''; for(const tpl of Game.deckTemplates){ const d=document.createElement('div'); d.className='card'; d.innerHTML=`<div style="font-weight:700">${tpl.name}</div><div class="muted">${tpl.cost} elixir</div>`; d.addEventListener('click',()=>{ if(Game.elixir>=tpl.cost){ Game.selectedCard=tpl; highlightSelected(d);} else log('Not enough elixir');}); deckEl.appendChild(d);} }
+  function highlightSelected(node){ Array.from(deckEl.children).forEach(c=>c.style.boxShadow=''); if(node) node.style.boxShadow='0 0 0 3px rgba(50,200,255,0.14)'; }
+  function updateElixirUI(){ const pct=Math.round((Game.elixir/Game.elixirMax)*100); document.getElementById('elixirFill').style.width=pct+'%'; document.getElementById('elixirText').innerText='Elixir: '+Math.floor(Game.elixir)+' / '+Game.elixirMax; Array.from(deckEl.children).forEach((c,i)=>{ const tpl=Game.deckTemplates[i]; if(Game.elixir<tpl.cost) c.classList.add('disabled'); else c.classList.remove('disabled'); }); }
 
-  // -------------------- Troop --------------------
-  function Troop(opts){
-    this.team = opts.team;
-    this.name = opts.template.name;
-    this.hp = opts.template.hp;
-    this.maxHp = this.hp;
-    this.dmg = opts.template.dmg;
-    this.speed = opts.template.speed;
-    this.range = opts.template.range;
-    this.projectile = !!opts.template.projectile;
-    this.size = opts.template.size || 6;
-    this.path = opts.path.map(p=>p.clone());
-    // IMPORTANT: choose starting waypoint index to avoid backwards motion
-    // Start at 1 (pre-bridge) so troop moves forward immediately
-    this.waypointIndex = (this.team === 'player') ? 1 : (this.path.length - 2);
-    this.crossedBridge = false; // will flip true once we pass the post-bridge coordinate (robust check below)
-    this.mesh = new THREE.Mesh(new THREE.BoxGeometry(this.size, this.size, this.size), new THREE.MeshLambertMaterial({color: (this.team==='player'?0xffe0b0:0xffb0b0)}));
-    // spawn position set by caller
-    this.mesh.position.copy(opts.pos); this.mesh.position.y = this.size/2;
-    const hp = createHealthBar(); this.mesh.add(hp); hp.position.set(0, this.size + 6, 0); this.hpBar = hp;
-    this.target = null; this.state = 'moving'; this.attackCooldown = 0;
-    this.id = 'troop-' + Math.random().toString(36).substr(2,6);
-    scene.add(this.mesh); World.troops.push(this);
-  }
+  // ---- Cleanup ----
+  function cleanupDead(){ for(let i=World.troops.length-1;i>=0;--i){ if(World.troops[i].hp<=0){ try{ scene.remove(World.troops[i].mesh);}catch(e){} World.troops.splice(i,1); } } for(let i=World.projectiles.length-1;i>=0;--i){ if(World.projectiles[i].dead){ try{ scene.remove(World.projectiles[i].mesh);}catch(e){} World.projectiles.splice(i,1); } } }
 
-  Troop.prototype.updateVisual = function(){
-    const front = this.mesh.children[0].getObjectByName('hpFront');
-    if(front){ const pct = clamp(this.hp / this.maxHp, 0, 1); front.scale.x = pct; front.position.x = - (20 * (1 - pct)) / 2; }
-  };
+  // ---- Main loop ----
+  let last=now(); function animate(){ requestAnimationFrame(animate); const t=now(); const dt=clamp(t-last,0,0.06); last=t; if(!Game.paused){ Game.elixir=clamp(Game.elixir+Game.elixirRate*dt,0,Game.elixirMax); updateElixirUI(); aiTick(dt); for(const tw of World.towers) tw.tryFire(dt); updateProjectiles(dt); for(const u of World.troops){ u.update(dt); u.updateVisual(); } cleanupDead(); const pKing = World.towers.find(t=>t.team==='player'&&t.kind==='king'); const eKing = World.towers.find(t=>t.team==='enemy'&&t.kind==='king'); if(pKing&&pKing.hp<=0){ Game.paused=true; log('Enemy wins!'); } if(eKing&&eKing.hp<=0){ Game.paused=true; log('Player wins!'); } } renderer.render(scene,camera); }
 
-  Troop.prototype.findTarget = function(){
-    let best=null, bd=Infinity;
-    for(const u of World.troops){ if(u.team === this.team || u.hp<=0) continue; const d = vdist(this.mesh.position, u.mesh.position); if(d < bd){ bd = d; best = u; } }
-    if(best) return best;
-    for(const t of World.towers){ if(t.team === this.team || t.hp<=0) continue; const d2 = vdist(this.mesh.position, t.pos); if(d2 < bd){ bd = d2; best = t; } }
-    return best;
-  };
+  // ---- Buttons ----
+  document.getElementById('btnPause').addEventListener('click',()=>{ Game.paused=!Game.paused; document.getElementById('btnPause').innerText=Game.paused?'Resume':'Pause'; });
+  document.getElementById('btnReset').addEventListener('click',()=>{ for(const t of World.towers){ try{ scene.remove(t.mesh); scene.remove(t.hpBar);}catch(e){} } for(const u of World.troops){ try{ scene.remove(u.mesh);}catch(e){} } for(const p of World.projectiles){ try{ scene.remove(p.mesh);}catch(e){} } World.troops.length=0; World.towers.length=0; World.projectiles.length=0; Game.elixir=4; Game.ai.elixir=4; updateElixirUI(); spawnAllTowers(); buildDeckUI(); Game.selectedCard=null; highlightSelected(null); log('World reset'); });
 
-  Troop.prototype.update = function(dt){
-    if(this.hp <= 0) return;
-    if(this.target && this.target.hp <= 0){ this.target = null; this.state = 'moving'; }
-    if(!this.target) this.target = this.findTarget();
-
-    // update crossedBridge flag using world-position vs post-bridge Z (robust)
-    // post-bridge waypoint is path[2]
-    if(this.path && this.path[2]){
-      const postZ = this.path[2].z;
-      if(this.team === 'player'){
-        // player troops move from +z toward -z
-        if(this.mesh.position.z <= postZ + 1) this.crossedBridge = true;
-      } else {
-        // enemy troops move from -z toward +z
-        if(this.mesh.position.z >= postZ - 1) this.crossedBridge = true;
-      }
-    }
-
-    if(this.target){
-      const targetPos = (this.target.mesh) ? this.target.mesh.position : this.target.pos;
-      const d = vdist(this.mesh.position, targetPos);
-      if(d <= this.range + 6){
-        this.state = 'attacking'; this.attack(dt); return;
-      } else { this.state = 'moving'; }
-    }
-
-    if(this.state === 'moving'){
-      if(this.waypointIndex >= this.path.length){
-        if(this.target) this.moveToward((this.target.mesh?this.target.mesh.position:this.target.pos), dt);
-      } else {
-        const wp = this.path[this.waypointIndex];
-        const dwp = vdist(this.mesh.position, wp);
-        if(dwp < 4) this.waypointIndex++;
-        else this.moveToward(wp, dt);
-      }
-    }
-  };
-
-  Troop.prototype.moveToward = function(vec3, dt){
-    const cur = this.mesh.position;
-    const dx = vec3.x - cur.x, dz = vec3.z - cur.z;
-    const d = Math.sqrt(dx*dx + dz*dz);
-    if(d < 0.01) return;
-    const nx = dx / d, nz = dz / d;
-    const move = this.speed * dt;
-    const actual = Math.min(move, d);
-    this.mesh.position.x += nx * actual; this.mesh.position.z += nz * actual; this.mesh.position.y = this.size/2;
-  };
-
-  Troop.prototype.attack = function(dt){
-    if(this.attackCooldown > 0){ this.attackCooldown -= dt; return; }
-    if(this.projectile){
-      spawnProjectile(this.mesh.position.clone(), this.target, this.dmg, this.team);
-    } else {
-      if(this.target && this.target.hp !== undefined){
-        this.target.hp = Math.max(0, this.target.hp - this.dmg);
-      }
-    }
-    this.attackCooldown = 1.0;
-  };
-
-  // -------------------- Game & AI --------------------
-  const Game = {
-    elixir: 4, elixirMax: 10, elixirRate: 1, last: now(), paused:false,
-    placementZone: { xMin:-80, xMax:80, zMin: ARENA_H/2 - 140, zMax: ARENA_H/2 - 30 },
-    deckTemplates: [
-      {name:'Knight', hp:420, dmg:48, speed:45, range:8, projectile:false, cost:3, size:8},
-      {name:'Archer', hp:200, dmg:28, speed:55, range:120, projectile:true, cost:3, size:6},
-      {name:'Giant', hp:1100, dmg:62, speed:32, range:12, projectile:false, cost:5, size:12},
-      {name:'Hog', hp:320, dmg:60, speed:110, range:10, projectile:false, cost:4, size:8}
-    ],
-    selectedCard: null,
-    ai: { elixir: 4, spawnIntervalMin: 1.2, spawnIntervalMax: 3.0, lastSpawnAttempt: 0 }
-  };
-
-  function spawnAllTowers(){
-    for(const t of World.towers){ try{ scene.remove(t.mesh); scene.remove(t.hpBar); }catch(e){} }
-    World.towers.length = 0;
-    const pLeft = new Tower({team:'player', kind:'princess', pos:new THREE.Vector3(-64,0, ARENA_H/2 - 80)});
-    const pRight = new Tower({team:'player', kind:'princess', pos:new THREE.Vector3(64,0, ARENA_H/2 - 80)});
-    const pKing = new Tower({team:'player', kind:'king', pos:new THREE.Vector3(0,0, ARENA_H/2 - 40)});
-    const eLeft = new Tower({team:'enemy', kind:'princess', pos:new THREE.Vector3(-64,0, -ARENA_H/2 + 80)});
-    const eRight = new Tower({team:'enemy', kind:'princess', pos:new THREE.Vector3(64,0, -ARENA_H/2 + 80)});
-    const eKing = new Tower({team:'enemy', kind:'king', pos:new THREE.Vector3(0,0, -ARENA_H/2 + 40)});
-    World.towers.push(pLeft,pRight,pKing,eLeft,eRight,eKing);
-    for(const t of World.towers) t.updateVisual();
-    // apply multipliers now (ensures range/fireRate/damage is correct)
-    Game.applyTowerMultipliers();
-  }
-
-  Game.recomputePlacementZones = function(){
-    const m = Inspector.placementMul;
-    const baseW = 150, baseH = 120;
-    const w = baseW * m, h = baseH * m;
-    this.placementZone.xMin = -w/2; this.placementZone.xMax = w/2;
-    this.placementZone.zMin = ARENA_H/2 - h - 10; this.placementZone.zMax = ARENA_H/2 - 30;
-  };
-
-  Game.applyTowerMultipliers = function(){
-    for(const t of World.towers){
-      t.damage = Math.round(t.baseDamage * Inspector.dmgMul);
-      t.range = Math.round(t.baseRange * Inspector.rangeMul);
-      t.fireRate = Math.max(0.05, t.baseFireRate * Inspector.rateMul);
-      // hp multiplier
-      t.baseHP = Math.round((t.kind === 'king' ? 1600 : 1000) * Inspector.hpMul);
-      if(t.hp > t.baseHP) t.hp = t.baseHP;
-      t.updateVisual();
-    }
-    log('Applied tower multipliers');
-  };
-
-  function spawnTroopFromCard(cardTemplate, worldPos){
-    if(worldPos.z < Game.placementZone.zMin || worldPos.z > Game.placementZone.zMax ||
-       worldPos.x < Game.placementZone.xMin || worldPos.x > Game.placementZone.xMax){
-      log('Placement outside allowed area'); return;
-    }
-    if(Game.elixir < cardTemplate.cost){ log('Not enough elixir'); return; }
-    Game.elixir -= cardTemplate.cost; updateElixirUI();
-    // choose lane nearest by x
-    const laneName = (worldPos.x < 0) ? 'left' : 'right';
-    const lane = Lanes[laneName];
-    const spawnPos = worldPos.clone();
-    spawnPos.y = 0;
-    spawnPos.z = clamp(spawnPos.z, Game.placementZone.zMin, Game.placementZone.zMax);
-    const troop = new Troop({team:'player', template:cardTemplate, pos: spawnPos, path: lane});
-    troop.name = cardTemplate.name;
-    troop.maxHp = cardTemplate.hp; troop.hp = cardTemplate.hp; troop.dmg = cardTemplate.dmg;
-    troop.speed = cardTemplate.speed; troop.range = cardTemplate.range; troop.projectile = !!cardTemplate.projectile;
-    log('Player spawned', troop.name, 'at', Math.round(spawnPos.x), Math.round(spawnPos.z));
-  }
-
-  // AI: very simple elixir & spawn
-  function aiTick(dt){
-    Game.ai.elixir = clamp(Game.ai.elixir + Game.elixirRate * dt, 0, Game.elixirMax);
-    Game.ai.lastSpawnAttempt += dt;
-    const next = randRange(Game.ai.spawnIntervalMin, Game.ai.spawnIntervalMax);
-    if(Game.ai.lastSpawnAttempt >= next){
-      Game.ai.lastSpawnAttempt = 0;
-      const candidate = Game.deckTemplates[Math.floor(Math.random() * Game.deckTemplates.length)];
-      if(Game.ai.elixir >= candidate.cost){
-        const laneChoiceName = (Math.random() < 0.5) ? 'left' : 'right';
-        const lane = Lanes[laneChoiceName];
-        const spawnPos = lane[lane.length - 1].clone(); // enemy spawn anchor
-        spawnPos.x += (Math.random() - 0.5) * 20;
-        aiSpawnTroop(candidate, spawnPos, lane);
-        Game.ai.elixir -= candidate.cost;
-        log('AI spawned', candidate.name, 'on', laneChoiceName);
-      }
-    }
-  }
-
-  function aiSpawnTroop(cardTemplate, worldPos, path){
-    const spawnPos = worldPos.clone(); spawnPos.y = 0;
-    const troop = new Troop({team:'enemy', template:cardTemplate, pos: spawnPos, path: path});
-    troop.name = cardTemplate.name;
-    troop.maxHp = cardTemplate.hp; troop.hp = cardTemplate.hp; troop.dmg = cardTemplate.dmg;
-    troop.speed = cardTemplate.speed; troop.range = cardTemplate.range; troop.projectile = !!cardTemplate.projectile;
-  }
-
-  // -------------------- Input: screen -> world --------------------
-  const raycaster = new THREE.Raycaster();
-  const mouse = new THREE.Vector2();
-  function screenToWorld(x,y){
-    const rect = renderer.domElement.getBoundingClientRect();
-    mouse.x = ( (x - rect.left) / rect.width ) * 2 - 1;
-    mouse.y = - ( (y - rect.top) / rect.height ) * 2 + 1;
-    raycaster.setFromCamera(mouse, camera);
-    const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
-    const p = new THREE.Vector3(); raycaster.ray.intersectPlane(plane, p);
-    return p;
-  }
-
-  renderer.domElement.addEventListener('pointerdown', ev=>{
-    const p = screenToWorld(ev.clientX, ev.clientY);
-    if(Game.selectedCard){
-      spawnTroopFromCard(Game.selectedCard, p);
-      Game.selectedCard = null; highlightSelected(null);
-    }
-  });
-
-  // -------------------- Deck UI & Elixir UI --------------------
-  const deckEl = document.getElementById('deck');
-  function buildDeckUI(){
-    deckEl.innerHTML = '';
-    for(const tpl of Game.deckTemplates){
-      const d = document.createElement('div');
-      d.className = 'card';
-      d.innerHTML = `<div style="font-weight:700">${tpl.name}</div><div class="small">${tpl.cost} elixir</div>`;
-      d.addEventListener('click', ()=>{ if(Game.elixir >= tpl.cost){ Game.selectedCard = tpl; highlightSelected(d);} else log('Not enough elixir'); });
-      deckEl.appendChild(d);
-    }
-  }
-  function highlightSelected(node){
-    Array.from(deckEl.children).forEach(c=> c.style.boxShadow = '');
-    if(node) node.style.boxShadow = '0 0 0 3px rgba(50,200,255,0.14)';
-  }
-  function updateElixirUI(){
-    const pct = Math.round((Game.elixir / Game.elixirMax) * 100);
-    document.getElementById('elixirFill').style.width = pct + '%';
-    document.getElementById('elixirText').innerText = 'Elixir: ' + Math.floor(Game.elixir) + ' / ' + Game.elixirMax;
-    Array.from(deckEl.children).forEach((c,i)=>{
-      const tpl = Game.deckTemplates[i];
-      if(Game.elixir < tpl.cost) c.classList.add('disabled'); else c.classList.remove('disabled');
-    });
-  }
-
-  // -------------------- Cleanup helper --------------------
-  function cleanupDead(){
-    for(let i = World.troops.length - 1; i >= 0; --i){
-      if(World.troops[i].hp <= 0){ try{ scene.remove(World.troops[i].mesh); }catch(e){}; World.troops.splice(i,1); }
-    }
-    for(let i = World.projectiles.length -1; i>=0; --i){ if(World.projectiles[i].dead){ try{ scene.remove(World.projectiles[i].mesh); }catch(e){}; World.projectiles.splice(i,1); } }
-  }
-
-  // -------------------- Main loop --------------------
-  let last = now();
-  function animate(){
-    requestAnimationFrame(animate);
-    const t = now();
-    const dt = clamp(t - last, 0, 0.06);
-    last = t;
-    if(!Game.paused){
-      Game.elixir = clamp(Game.elixir + Game.elixirRate * dt, 0, Game.elixirMax);
-      updateElixirUI();
-      aiTick(dt);
-      for(const tw of World.towers) tw.tryFire(dt);
-      updateProjectiles(dt);
-      for(const u of World.troops){ u.update(dt); u.updateVisual(); }
-      cleanupDead();
-      // check win: kings
-      const pKing = World.towers.find(t=>t.team==='player' && t.kind==='king');
-      const eKing = World.towers.find(t=>t.team==='enemy' && t.kind==='king');
-      if(pKing && pKing.hp <= 0){ Game.paused = true; log('Enemy wins!'); }
-      if(eKing && eKing.hp <= 0){ Game.paused = true; log('Player wins!'); }
-    }
-    renderer.render(scene, camera);
-  }
-
-  // -------------------- Buttons --------------------
-  document.getElementById('btnPause').addEventListener('click', ()=>{ Game.paused = !Game.paused; document.getElementById('btnPause').innerText = Game.paused ? 'Resume' : 'Pause'; });
-  document.getElementById('btnStep').addEventListener('click', ()=>{ if(Game.paused){ Game.paused = false; last = now(); setTimeout(()=>{ Game.paused = true; }, 30);} });
-  document.getElementById('btnReset').addEventListener('click', ()=>{
-    for(const t of World.towers){ try{ scene.remove(t.mesh); scene.remove(t.hpBar); }catch(e){} }
-    for(const u of World.troops){ try{ scene.remove(u.mesh); }catch(e){} }
-    for(const p of World.projectiles){ try{ scene.remove(p.mesh); }catch(e){} }
-    World.troops.length = 0; World.towers.length = 0; World.projectiles.length = 0;
-    Game.elixir = 4; Game.ai.elixir = 4; updateElixirUI();
-    spawnAllTowers(); buildDeckUI(); Game.selectedCard = null; highlightSelected(null); createWaypointMarkers();
-    log('World reset');
-  });
-
-  // -------------------- Init --------------------
-  Game.recomputePlacementZones(); spawnAllTowers(); buildDeckUI(); updateElixirUI(); animate();
-  log('MegaFixes 3D — waypoints added (visible) — spawn anywhere on player half and troops follow pre->post->tower. Post-bridge points are now on the bridges.');
-
-  // expose for debugging
-  window.MegaFixes3D = { scene, camera, renderer, World, Game, Inspector, Lanes, WaypointMarkers };
-
+  // ---- Init ----
+  Game.recomputePlacementZones(); spawnAllTowers(); buildDeckUI(); updateElixirUI(); animate(); log('Full 3D loaded — bridges aligned; troops and towers engage; debug markers hidden.');
+  window.ClashFull = { scene, camera, renderer, World, Game, Lanes };
   </script>
 </body>
 </html>
