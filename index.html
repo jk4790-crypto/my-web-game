@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Mini Royale — Ultimate Beast (Cannon + Fireball)</title>
+<title>Mini Royale — Mega Beast: Dragon & Swarm</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
 :root{
@@ -45,7 +45,7 @@ code{background:#f3f6fb;padding:2px 6px;border-radius:4px}
 <body>
 <div id="root">
   <header>
-    <h1>Mini Royale — Cannon & Fireball Beast</h1>
+    <h1>Mini Royale — Mega Beast: Dragon & Swarm</h1>
     <div style="display:flex;gap:10px;align-items:center">
       <div class="small">Accurate elixir • double after 2:00</div>
       <button id="restartBtn">Restart</button>
@@ -66,13 +66,13 @@ code{background:#f3f6fb;padding:2px 6px;border-radius:4px}
         </div>
         <div style="margin-top:8px" id="elixirBar"><div id="elixirFill"></div></div>
         <div id="elixirCount" class="small">5 / 10</div>
-        <div style="margin-top:10px;font-size:12px;color:var(--muted)">Click a card → preview on left half → click to deploy (or cast). Fireball hits troops & buildings.</div>
+        <div style="margin-top:10px;font-size:12px;color:var(--muted)">Click a card → preview on left half → click to deploy (or cast). Fireball & Dragon have splash.</div>
       </div>
 
       <div class="panel">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <strong>Your hand</strong>
-          <div class="small">3 visible • includes Cannon & Fireball</div>
+          <div class="small">3 visible • includes Cannon, Fireball, Dragon, Skeletons</div>
         </div>
         <div id="hand"></div>
         <div id="controls">
@@ -100,8 +100,10 @@ code{background:#f3f6fb;padding:2px 6px;border-radius:4px}
 <div id="previewLabel" class="preview-label" style="display:none">Preview</div>
 
 <script>
-/* Ultimate Beast Integration
-   - polished visuals, cannon decay nerf, CPU AI, full gameplay
+/* Mega Beast v2
+   - Adds: Dragon (flying splash), Skeleton Swarm (fragile melee), 
+     troops attack king after small tower drops, backwards attacks allowed,
+     splash: Fireball + Dragon projectiles only.
 */
 
 // ---------- CONFIG ----------
@@ -111,10 +113,10 @@ const CONFIG = {
   crownX: 160, crownR: 32, kingBackOffset: 110,
   elixir: { start: 5, max: 10, regenMs: 2800, doubleAfterMs: 120000, doubleRegenMs: 1400 },
   cpuAttemptMin: 4000, cpuAttemptMax: 5000,
-  deckVisible: 3, deckTotal: 8
+  deckVisible: 3, deckTotal: 10 // expanded for new cards
 };
 
-// ---------- CATALOG (troops, cannon, fireball) ----------
+// ---------- CATALOG (includes new Dragon & Skeleton Swarm) ----------
 const CATALOG = [
   { key:'knight', name:'Knight', cost:3, hp:160, dmg:46, speed:48, range:18, size:14, type:'melee', aggro:50, model:'knight' },
   { key:'archer', name:'Archer', cost:3, hp:80, dmg:28, speed:84, range:140, size:10, type:'ranged', projectile:'purple', aggro:80, model:'archer' },
@@ -122,10 +124,11 @@ const CATALOG = [
   { key:'goblin', name:'Goblin', cost:2, hp:70, dmg:34, speed:120, range:14, size:10, type:'melee', aggro:44, model:'goblin' },
   { key:'bomber', name:'Bomber', cost:4, hp:120, dmg:90, speed:36, range:22, size:15, type:'splash', splash:30, projectile:'gray', aggro:70, model:'bomber' },
   { key:'healer', name:'Healer', cost:4, hp:110, dmg:0, speed:44, range:48, size:13, type:'healer', heal:18, projectile:'green', aggro:60, model:'healer' },
-  // Cannon building
   { key:'cannon', name:'Cannon', cost:4, hp:700, dmg:80, speed:1.0, range:120, size:22, type:'building', model:'cannon' },
-  // Fireball spell (cast -> projectile -> splash)
-  { key:'fireball', name:'Fireball', cost:4, dmg:160, splash:70, type:'spell', model:'fireball' }
+  { key:'fireball', name:'Fireball', cost:4, dmg:160, splash:70, type:'spell', model:'fireball' },
+  // New cards:
+  { key:'dragon', name:'Dragon', cost:5, hp:360, dmg:48, speed:46, range:100, size:26, type:'flying', isFlying:true, projectile:'fire', splash:36, model:'dragon' },
+  { key:'skeleton_swarm', name:'Skeletons', cost:3, hp:28, dmg:28, speed:110, range:14, size:8, type:'melee', swarmCount:7, model:'skeleton' }
 ];
 
 // ---------- UTILS ----------
@@ -167,7 +170,9 @@ function initGame(){
     entities: [], projectiles: [], buildings: [],
     playerTowers: [], cpuTowers: [],
     cpuTimer: 0, cpuNextAttempt: randRange(CONFIG.cpuAttemptMin, CONFIG.cpuAttemptMax),
-    crowns: { player:0, cpu:0 }, running: true, timeStarted: now()
+    crowns: { player:0, cpu:0 }, running: true, timeStarted: now(),
+    // new: track if side tower died so troops go for king
+    kingUnlock: { player: false, cpu: false }
   };
 
   const left = CONFIG.crownX, right = CONFIG.W - CONFIG.crownX;
@@ -191,8 +196,8 @@ function initGame(){
 }
 
 function makeTower(x,y,owner,name,isKing=false){
-  const hp = isKing ? 1200 : 700;
-  const dmg = isKing ? 90 : 75;
+  const hp = isKing ? 1400 : 700;
+  const dmg = isKing ? 95 : 75;
   return {
     id: uid(), x, y, owner, name, isKing,
     r: CONFIG.crownR,
@@ -224,7 +229,7 @@ function renderHand(){
 }
 
 function logClear(){ logEl.innerHTML=''; }
-function log(txt){ const d=document.createElement('div'); d.textContent=`[${Math.floor(state.timeMs/1000)}s] ${txt}`; logEl.prepend(d); if(logEl.children.length>200) logEl.removeChild(logEl.lastChild); }
+function log(txt){ const d=document.createElement('div'); d.textContent=`[${Math.floor(state.timeMs/1000)}s] ${txt}`; logEl.prepend(d); if(logEl.children.length>400) logEl.removeChild(logEl.lastChild); }
 function flashLabel(msg){ previewLabel.style.display='block'; previewLabel.textContent=msg; previewLabel.style.left=(window.innerWidth/2+120)+'px'; previewLabel.style.top='18px'; setTimeout(()=>{ if(state && state.selectedCardIndex!==null) previewLabel.style.display='block'; else previewLabel.style.display='none'; },900); }
 
 // ---------- INPUT: preview movement & placement ----------
@@ -252,7 +257,8 @@ canvas.addEventListener('click', (ev) => {
   const card = state.preview.card;
   if(state.elixir < card.cost){ log('Not enough elixir for ' + card.name); return; }
 
-  if(card.type === 'spell'){
+  // Fireball
+  if(card.type === 'spell' && card.key === 'fireball'){
     const targetX = state.preview.x, targetY = state.preview.y;
     spawnSpellProjectile(120, CONFIG.H/2, { x: targetX, y: targetY }, card.dmg, card.splash, 'orange', 'player');
     state.elixir -= card.cost;
@@ -262,6 +268,7 @@ canvas.addEventListener('click', (ev) => {
     renderHand(); updateElixirUI(); return;
   }
 
+  // Building (cannon)
   if(card.type === 'building'){
     const spawnX = state.preview.x;
     const spawnY = state.preview.y;
@@ -273,6 +280,28 @@ canvas.addEventListener('click', (ev) => {
     renderHand(); updateElixirUI(); return;
   }
 
+  // Skeleton swarm
+  if(card.key === 'skeleton_swarm'){
+    const cx = state.preview.x, cy = state.preview.y;
+    spawnSkeletonSwarm(cx, cy, 'player', state.preview.y === CONFIG.lanes.top ? 'top' : 'bottom', card.swarmCount || 7);
+    state.elixir -= card.cost;
+    const used = state.playerDeck.splice(state.selectedCardIndex,1)[0];
+    state.playerDeck.push({...used, uid: uid()});
+    state.selectedCardIndex = null; state.preview = null; previewLabel.style.display='none';
+    renderHand(); updateElixirUI(); return;
+  }
+
+  // Dragon spawn
+  if(card.key === 'dragon'){
+    spawnUnit(card, state.preview.x, state.preview.y - 12, 'player', state.preview.y === CONFIG.lanes.top ? 'top' : 'bottom');
+    state.elixir -= card.cost;
+    const used = state.playerDeck.splice(state.selectedCardIndex,1)[0];
+    state.playerDeck.push({...used, uid: uid()});
+    state.selectedCardIndex = null; state.preview = null; previewLabel.style.display='none';
+    renderHand(); updateElixirUI(); return;
+  }
+
+  // Regular troop spawn
   const spawnX = state.preview.x; const spawnY = state.preview.y;
   spawnUnit(card, spawnX, spawnY, 'player', spawnY === CONFIG.lanes.top ? 'top' : 'bottom');
   state.elixir -= card.cost;
@@ -302,13 +331,37 @@ function spawnUnit(card, x, y, owner, lane){
     x: nx, y, hp: card.hp, maxHp: card.hp, dmg: card.dmg, speed: card.speed,
     size: card.size || 12, type: card.type, range: card.range || 20, splash: card.splash || 0,
     heal: card.heal || 0, projectileType: card.projectile || null, atkCooldown: 0, atkSpeed: 1.0,
-    birth: now(), aggroRadius: card.aggro || 60, target: null
+    birth: now(), aggroRadius: card.aggro || 60, target: null, isFlying: !!card.isFlying
   };
+  // dragon has a slightly longer attack cooldown for fireballs
+  if(card.key === 'dragon'){ u.atkSpeed = 0.8; u.projectileType = 'fire'; u.splash = card.splash || 28; }
   state.entities.push(u);
   log(`${owner === 'player' ? 'You' : 'CPU'} deployed ${u.name} (${lane})`);
   return u;
 }
 
+// spawn skeleton swarm (cluster)
+function spawnSkeletonSwarm(cx, cy, owner, lane, count=7){
+  const spread = 18;
+  for(let i=0;i<count;i++){
+    const ang = Math.random()*Math.PI*2;
+    const r = Math.random()*spread*0.6;
+    const x = clamp(cx + Math.cos(ang)*r, 60, canvas.width/2 - 60);
+    const y = cy + (Math.random()-0.5)*12;
+    const sk = {...CATALOG.find(c=>c.key==='skeleton_swarm'), uid: uid()};
+    // create actual small unit object using spawnUnit style
+    const unit = {
+      id: uid(), key:'skeleton', name:'Skeleton', owner, lane,
+      x, y, hp: sk.hp, maxHp: sk.hp, dmg: sk.dmg, speed: sk.speed,
+      size: sk.size, type: 'melee', range: sk.range, splash:0, projectileType:null, atkCooldown:0, atkSpeed:1.0,
+      birth: now(), aggroRadius: sk.aggro || 48, target: null, isFlying: false
+    };
+    state.entities.push(unit);
+  }
+  log(`${owner === 'player' ? 'You' : 'CPU'} spawned Skeleton Swarm (${count})`);
+}
+
+// ---------- PROJECTILES ----------
 function spawnProjectile(fromX, fromY, targetObj, dmg, color, owner, kind='bullet', splash=0){
   const p = {
     id: uid(), x: fromX, y: fromY, targetId: targetObj.id, targetType: targetObj.type || (targetObj.owner ? 'unit' : 'building'),
@@ -344,7 +397,7 @@ function cpuBehaviorTick(dt){
     if(cand) pick = cand;
   }
 
-  if(pick.type === 'spell'){
+  if(pick.type === 'spell' && pick.key==='fireball'){
     let tx = canvas.width * 0.35, ty = CONFIG.H/2;
     const playerUnits = state.entities.filter(u => u.owner === 'player');
     if(playerUnits.length){
@@ -362,6 +415,11 @@ function cpuBehaviorTick(dt){
     const sx = clamp(randRange(Math.floor(canvas.width/2 + 60), canvas.width - 80), canvas.width/2 + 60, canvas.width - 60);
     spawnBuilding(pick, sx, lane === 'top' ? CONFIG.lanes.top : CONFIG.lanes.bottom, 'cpu', lane);
     state.cpuElixir -= pick.cost;
+  } else if(pick.key === 'skeleton_swarm'){
+    const lane = Math.random() < 0.5 ? 'top' : 'bottom';
+    const sx = clamp(randRange(Math.floor(canvas.width/2 + 60), canvas.width - 80), canvas.width/2 + 60, canvas.width - 60);
+    spawnSkeletonSwarm(sx, lane === 'top' ? CONFIG.lanes.top : CONFIG.lanes.bottom, 'cpu', lane, pick.swarmCount || 7);
+    state.cpuElixir -= pick.cost;
   } else {
     const lane = Math.random() < 0.5 ? 'top' : 'bottom';
     const sx = clamp(randRange(Math.floor(canvas.width/2 + 60), canvas.width - 80), canvas.width/2 + 60, canvas.width - 60);
@@ -377,15 +435,19 @@ function cpuBehaviorTick(dt){
 function simulate(dt){
   const sdt = dt/1000;
 
-  // projectiles
+  // PROJECTILES: spells & homing projectiles
   for(let i = state.projectiles.length - 1; i >= 0; i--){
     const p = state.projectiles[i];
     if(p.kind === 'spell'){
       const dx = p.destX - p.x, dy = p.destY - p.y; const dist = Math.hypot(dx,dy);
       const travel = p.speed * sdt;
       if(dist <= travel || dist < 4){
+        // explosion: apply splash to units/buildings
         const targets = state.entities.filter(u => Math.hypot(u.x - p.destX, u.y - p.destY) <= p.splash);
-        for(const t of targets) t.hp -= p.dmg;
+        for(const t of targets){
+          // spell/projectile damage always applies (ranged)
+          t.hp -= p.dmg;
+        }
         const builds = state.buildings.filter(b => Math.hypot(b.x - p.destX, b.y - p.destY) <= p.splash && b.alive);
         for(const b of builds) b.hp -= p.dmg;
         for(const t of [...state.playerTowers, ...state.cpuTowers]) if(Math.hypot(t.x - p.destX, t.y - p.destY) <= p.splash) t.hp -= p.dmg;
@@ -402,10 +464,15 @@ function simulate(dt){
       const dx = target.x - p.x, dy = target.y - p.y; const dist = Math.hypot(dx,dy);
       const travel = p.speed * sdt;
       if(dist <= travel || dist < 4){
+        // hit
         if(p.splash && p.splash > 0){
           const enemies = state.entities.filter(e => e.owner !== p.owner && Math.hypot(e.x - target.x, e.y - target.y) <= p.splash);
-          for(const e of enemies) e.hp -= p.dmg;
+          for(const e of enemies){
+            // Projectiles (spell/dragon/tower) count as ranged, so they hit flying targets too
+            e.hp -= p.dmg;
+          }
         } else {
+          // single target apply, but respect flying rules for melee-only projectiles don't happen here, projectiles are ranged
           if(p.targetType === 'unit') target.hp -= p.dmg;
           else target.hp -= p.dmg;
         }
@@ -416,26 +483,28 @@ function simulate(dt){
     }
   }
 
-  // aggro
+  // AGGRO & TARGETING: units can attack backwards and prefer king when unlocked
   for(const u of state.entities){
     if(u.hp <= 0) continue;
-    let keep = false;
+    // clear invalid target
     if(u.target){
       const targUnit = state.entities.find(e => e.id === u.target && e.hp > 0);
       const targBuild = state.buildings.find(b => b.id === u.target && b.hp > 0) || [...state.playerTowers, ...state.cpuTowers].find(t => t.id === u.target && t.hp > 0);
-      if(targUnit || targBuild) keep = true;
-      if(!keep) u.target = null;
+      if(!(targUnit || targBuild)) u.target = null;
     }
     if(u.target) continue;
 
+    // allow any-direction targeting: nearest high-priority target
+    // priority: enemy units in aggroRadius -> cannons in lane -> towers (if king unlocked prefer king)
     const enemies = state.entities.filter(e => e.owner !== u.owner && e.hp > 0);
     let nearest = null, nd = 1e9;
     for(const e of enemies){
       const d = Math.hypot(e.x - u.x, e.y - u.y);
       if(d < nd){ nd = d; nearest = e; }
     }
-    if(nearest && nd <= u.aggroRadius){ u.target = nearest.id; if(nearest.target===null) nearest.target = u.id; continue; }
+    if(nearest && nd <= u.aggroRadius){ u.target = nearest.id; continue; }
 
+    // cannons in lane
     const enemyBuilds = state.buildings.filter(b => b.owner !== u.owner && b.alive);
     const cannons = enemyBuilds.filter(b => b.key==='cannon' && b.lane === u.lane);
     if(cannons.length){
@@ -443,23 +512,34 @@ function simulate(dt){
       const d = Math.hypot(cand.x - u.x, cand.y - u.y);
       if(d <= u.aggroRadius * 1.2){ u.target = cand.id; continue; }
     }
+
+    // towers: if side tower dead, units will prefer king tower
     const enemyTowers = (u.owner==='player') ? state.cpuTowers : state.playerTowers;
-    let nearestTower = null, td=1e9;
-    for(const t of enemyTowers){
-      if(!t.alive) continue;
-      const relevant = t.isKing ? true : (Math.abs(t.y - (u.lane==='top'?CONFIG.lanes.top:CONFIG.lanes.bottom)) < 28);
-      if(!relevant) continue;
-      const d = Math.hypot(t.x - u.x, t.y - u.y);
-      if(d < td){ td = d; nearestTower = t; }
+    // check if opponent side tower(s) dead -> if any princess (non-king) dead, unlock king preference
+    const enemyOwner = (u.owner === 'player') ? 'cpu' : 'player';
+    const kingUnlocked = state.kingUnlock[enemyOwner];
+    let candidateTowers = enemyTowers.filter(t => t.alive);
+    if(kingUnlocked){
+      // prefer king
+      const king = candidateTowers.find(t=>t.isKing);
+      if(king){ u.target = king.id; continue; }
+    } else {
+      // prefer closest relevant tower in lane or king if in range
+      let nearestTower = null, td=1e9;
+      for(const t of candidateTowers){
+        const relevant = t.isKing ? true : (Math.abs(t.y - (u.lane==='top'?CONFIG.lanes.top:CONFIG.lanes.bottom)) < 28);
+        if(!relevant) continue;
+        const d = Math.hypot(t.x - u.x, t.y - u.y);
+        if(d < td){ td = d; nearestTower = t; }
+      }
+      if(nearestTower && td <= u.aggroRadius * 1.2){ u.target = nearestTower.id; continue; }
     }
-    if(nearestTower && td <= u.aggroRadius * 1.2){ u.target = nearestTower.id; continue; }
   }
 
-  // movement & attack
+  // MOVEMENT & ATTACK (units can attack backwards)
   for(const u of state.entities){
     if(u.hp <= 0) continue;
-    const dir = (u.owner === 'player') ? 1 : -1;
-
+    // direction movement only when no immediate target in melee range
     if(u.target){
       let tUnit = state.entities.find(e => e.id === u.target && e.hp > 0);
       let tBuild = null;
@@ -474,23 +554,34 @@ function simulate(dt){
           u.atkCooldown -= dt/1000;
           if(u.atkCooldown <= 0){
             u.atkCooldown = 1 / (u.atkSpeed || 1);
+            // melee can't hit flying targets; ranged & projectiles can
             if(u.type === 'healer'){
               const allies = state.entities.filter(a => a.owner === u.owner && a.lane === u.lane && a.hp > 0 && Math.hypot(a.x - u.x,a.y - u.y) <= u.range);
               for(const a of allies) a.hp = Math.min(a.maxHp, a.hp + (u.heal || 10));
             } else if(u.type === 'splash' && u.splash){
-              for(const e of state.entities) if(e.owner !== u.owner && Math.hypot(e.x - tUnit.x, e.y - tUnit.y) <= u.splash) e.hp -= u.dmg;
+              // splash attack (e.g., bomber) - counts as ground splash -> won't damage flying units
+              for(const e of state.entities) if(e.owner !== u.owner && !e.isFlying && Math.hypot(e.x - tUnit.x, e.y - tUnit.y) <= u.splash) e.hp -= u.dmg;
             } else if(u.projectileType){
-              spawnProjectile(u.x, u.y, tUnit, u.dmg, u.projectileType, u.owner, 'unit', u.splash);
+              // ranged attack spawns projectile
+              spawnProjectile(u.x, u.y, tUnit, u.dmg, u.projectileType, u.owner, 'unit', u.splash || 0);
             } else {
-              tUnit.hp -= u.dmg;
+              // melee attack
+              if(tUnit.isFlying){
+                // melee cannot damage flying
+              } else {
+                tUnit.hp -= u.dmg;
+              }
             }
           }
         } else {
+          // move toward target (if not flying or if target is reachable)
           const ang = Math.atan2(tUnit.y - u.y, tUnit.x - u.x);
-          u.x += Math.cos(ang) * u.speed * (dt/1000) * 0.95;
+          // flying units move freer
+          u.x += Math.cos(ang) * (u.isFlying ? u.speed*1.0 : u.speed) * (dt/1000) * 0.95;
           u.y += ((u.lane==='top'?CONFIG.lanes.top:CONFIG.lanes.bottom) - u.y) * 0.15;
         }
       } else {
+        // target building/tower
         const tx = tBuild.x, ty = tBuild.y;
         const d = Math.hypot(tx - u.x, ty - u.y);
         if(d <= u.range + (tBuild.r||tBuild.size||18) + 6){
@@ -498,8 +589,15 @@ function simulate(dt){
           if(u.atkCooldown <= 0){
             u.atkCooldown = 1 / (u.atkSpeed || 1);
             if(u.projectileType){
-              spawnProjectile(u.x, u.y, tBuild, u.dmg, u.projectileType, u.owner, 'unit', u.splash);
+              // ranged or dragon's projectile (dragon's projectile includes splash)
+              if(u.key === 'dragon'){
+                // dragon shoots a projectile with splash
+                spawnProjectile(u.x, u.y, tBuild, u.dmg, 'orangered', u.owner, 'dragon_proj', u.splash || 36);
+              } else {
+                spawnProjectile(u.x, u.y, tBuild, u.dmg, u.projectileType, u.owner, 'unit', u.splash || 0);
+              }
             } else {
+              // melee can't hit flying targets (but towers/buildings are ground)
               tBuild.hp -= u.dmg;
             }
           }
@@ -509,13 +607,15 @@ function simulate(dt){
         }
       }
     } else {
+      // no target -> move forward normally (dragons still move)
+      const dir = (u.owner === 'player') ? 1 : -1;
       u.x += dir * u.speed * (dt/1000);
       const laneY = (u.lane === 'top') ? CONFIG.lanes.top : CONFIG.lanes.bottom;
-      u.y += (laneY - u.y) * 0.18;
+      if(!u.isFlying) u.y += (laneY - u.y) * 0.18;
     }
   }
 
-  // towers
+  // TOWER & BUILDING ATTACKS
   const dtSec = dt/1000;
   for(const t of state.playerTowers) towerAttack(t, dtSec);
   for(const t of state.cpuTowers) towerAttack(t, dtSec);
@@ -535,13 +635,21 @@ function simulate(dt){
     }
   }
 
-  // clean
-  state.entities = state.entities.filter(u => u.hp > 0 && u.x > -160 && u.x < canvas.width + 160);
+  // REMOVE DEAD UNITS/OUT-OF-BOUNDS
+  state.entities = state.entities.filter(u => u.hp > 0 && u.x > -200 && u.x < canvas.width + 200);
 
+  // BUILDING/TOWER DEATHS -> crowns & king unlock
   for(const b of [...state.buildings]){
     if(b.alive && b.hp <= 0){
       b.alive = false;
       log(`${b.owner.toUpperCase()} ${b.name} destroyed!`);
+      // if non-king tower destroyed, unlock king targeting for opposing side
+      if(!b.isKing){
+        const victimOwner = b.owner; // owner of destroyed tower
+        const opp = victimOwner === 'player' ? 'cpu' : 'player';
+        state.kingUnlock[opp] = true;
+        log(`Troops on ${opp.toUpperCase()} will now target KING tower when applicable.`);
+      }
     }
   }
 
@@ -573,6 +681,7 @@ function towerAttack(t, dtSec){
     if(d <= t.range){
       if(t.attackCooldown <= 0){
         t.attackCooldown = t.attackSpeed;
+        // towers are ranged: can hit flying and ground
         spawnProjectile(t.x, t.y, target, t.dmg, (t.owner==='player'?'blue':'red'), t.owner, 'tower', 0);
       }
     }
@@ -602,6 +711,7 @@ function buildingAttack(b, dtSec){
     if(d <= b.range){
       if(b.attackCooldown <= 0){
         b.attackCooldown = b.attackSpeed;
+        // cannon: ranged projectile (can hit flying)
         spawnProjectile(b.x, b.y, target, b.dmg, 'black', b.owner, 'building', 0);
       }
     }
@@ -611,22 +721,29 @@ function buildingAttack(b, dtSec){
 // ---------- RENDER ----------
 function render(){
   ctx.clearRect(0,0,CONFIG.W,CONFIG.H);
+  // background & lanes
   ctx.fillStyle = '#e9f5e9'; ctx.fillRect(0,0,CONFIG.W,CONFIG.H);
   ctx.fillStyle = '#d0f0d6'; ctx.fillRect(0, CONFIG.lanes.top - 84, CONFIG.W, 140);
   ctx.fillRect(0, CONFIG.lanes.bottom - 84, CONFIG.W, 140);
   ctx.fillStyle = 'rgba(90,140,150,0.10)'; ctx.fillRect(CONFIG.W/2 - 16, CONFIG.lanes.top - 96, 32, CONFIG.lanes.bottom - CONFIG.lanes.top + 192);
 
+  // towers
   state.playerTowers.filter(t=>t.isKing).forEach(drawTower);
   state.cpuTowers.filter(t=>t.isKing).forEach(drawTower);
   state.playerTowers.filter(t=>!t.isKing).forEach(drawTower);
   state.cpuTowers.filter(t=>!t.isKing).forEach(drawTower);
 
+  // buildings (cannons)
   state.buildings.filter(b => b.alive && b.key==='cannon').forEach(drawBuilding);
 
+  // projectiles
   for(const p of state.projectiles) drawProjectile(p);
 
-  for(const u of state.entities) drawUnit(u);
+  // units (draw flyers above ground units)
+  state.entities.filter(u => !u.isFlying).forEach(drawUnit);
+  state.entities.filter(u => u.isFlying).forEach(drawUnit);
 
+  // preview
   if(state.preview){
     const p = state.preview;
     ctx.beginPath(); ctx.fillStyle = 'rgba(255,210,80,0.12)'; ctx.strokeStyle = 'rgba(255,210,80,0.98)'; ctx.lineWidth = 2;
@@ -638,6 +755,7 @@ function render(){
     highlightThreatsAt(p.x,p.y,p.card.range || 20);
   }
 
+  // elixir HUD
   ctx.font = '12px sans-serif'; ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillText(`Elixir: ${Math.floor(state.elixir)} / ${CONFIG.elixir.max}`, 12, 18);
 }
 
@@ -694,11 +812,14 @@ function drawUnit(u){
   const t = now();
   const bobSpeed = 0.0015 * (u.speed / 60);
   const bob = Math.sin((t - u.birth) * bobSpeed * 1000) * (0.9 + (u.size/12));
-  ctx.translate(u.x, u.y + bob);
+  // flying units hover
+  const yOffset = u.isFlying ? -28 + Math.sin((t - u.birth)/300)*4 : 0;
+  ctx.translate(u.x, u.y + bob + yOffset);
 
+  // shadow (weaker for flying)
   ctx.beginPath();
   ctx.fillStyle = 'rgba(0,0,0,0.18)';
-  ctx.ellipse(0, u.size + 6, u.size*1.2, u.size*0.6, 0, 0, Math.PI*2);
+  ctx.ellipse(0, u.size + 6 + (u.isFlying ? 8 : 0), u.size*1.2, u.size*0.6, 0, 0, Math.PI*2);
   ctx.fill();
 
   const r = Math.max(6, u.size);
@@ -709,18 +830,34 @@ function drawUnit(u){
   else if(u.key === 'goblin'){ grad.addColorStop(0,'#c7ffd4'); grad.addColorStop(1,'#3aa34a'); }
   else if(u.key === 'bomber'){ grad.addColorStop(0,'#f4d7b6'); grad.addColorStop(1,'#5b3b2a'); }
   else if(u.key === 'healer'){ grad.addColorStop(0,'#ffffff'); grad.addColorStop(1,'#c7ffd6'); }
+  else if(u.key === 'skeleton'){ grad.addColorStop(0,'#ddd'); grad.addColorStop(1,'#aaa'); }
+  else if(u.key === 'dragon'){ grad.addColorStop(0,'#ffd5c1'); grad.addColorStop(1,'#b84b2b'); }
   else { grad.addColorStop(0,'#ddd'); grad.addColorStop(1,'#888'); }
 
   ctx.beginPath(); ctx.fillStyle = grad; ctx.arc(0,0,r,0,Math.PI*2); ctx.fill();
   ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.stroke();
 
-  const bw = r * 2.4; ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(-bw/2, -r - 14, bw, 6);
-  ctx.fillStyle = 'var(--hp)'; ctx.fillRect(-bw/2, -r - 14, bw * Math.max(0, u.hp / u.maxHp), 6);
-  ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.strokeRect(-bw/2, -r - 14, bw, 6);
+  // small wings for dragon
+  if(u.key === 'dragon'){
+    ctx.save();
+    ctx.translate(-r*0.7, -r*0.2); ctx.rotate(Math.sin((t - u.birth)/300)*0.25);
+    ctx.beginPath(); ctx.fillStyle = 'rgba(0,0,0,0.08)'; ctx.ellipse(0,0,r*1.2,r*0.6,0,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.translate(r*0.7, -r*0.2); ctx.rotate(-Math.sin((t - u.birth)/300)*0.25);
+    ctx.beginPath(); ctx.fillStyle = 'rgba(0,0,0,0.08)'; ctx.ellipse(0,0,r*1.2,r*0.6,0,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
 
+  // hp bar
+  const bw = r * 2.4; ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(-bw/2, -r - 16, bw, 6);
+  ctx.fillStyle = 'var(--hp)'; ctx.fillRect(-bw/2, -r - 16, bw * Math.max(0, u.hp / u.maxHp), 6);
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.strokeRect(-bw/2, -r - 16, bw, 6);
+
+  // symbol
   ctx.fillStyle = 'rgba(255,255,255,0.95)';
   ctx.font = `${Math.max(10, r)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  const sym = u.key === 'knight' ? '⚔️' : u.key === 'archer' ? '🏹' : u.key === 'miniTank' ? 'T' : u.key === 'goblin' ? 'G' : u.key === 'bomber' ? '💣' : u.key === 'healer' ? '✚' : u.name ? u.name[0] : '?';
+  const sym = u.key === 'knight' ? '⚔️' : u.key === 'archer' ? '🏹' : u.key === 'miniTank' ? 'T' : u.key === 'goblin' ? 'G' : u.key === 'bomber' ? '💣' : u.key === 'healer' ? '✚' : u.key === 'skeleton' ? '☠' : u.key === 'dragon' ? '🐉' : (u.name ? u.name[0] : '?');
   ctx.fillText(sym, 0, 0);
 
   ctx.restore();
@@ -730,14 +867,21 @@ function drawProjectile(p){
   ctx.save();
   ctx.beginPath();
   ctx.fillStyle = p.color || (p.owner==='player' ? 'var(--player)' : 'var(--cpu)');
-  const size = Math.max(3, Math.min(10, Math.sqrt(p.dmg)/2));
+  const size = Math.max(3, Math.min(12, Math.sqrt(p.dmg)/2));
   ctx.shadowBlur = 12; ctx.shadowColor = ctx.fillStyle;
   ctx.arc(p.x, p.y, size, 0, Math.PI*2);
   ctx.fill();
+  // splash hint for dragon/fireball mid-air
+  if(p.splash && p.kind === 'spell' || p.kind === 'dragon_proj'){
+    ctx.globalAlpha = 0.08;
+    ctx.beginPath(); ctx.fillStyle = p.color; ctx.arc(p.x, p.y, p.splash, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
   ctx.shadowBlur = 0;
   ctx.restore();
 }
 
+// ---------- highlight threats at preview ----------
 function highlightThreatsAt(x,y,range){
   const allTowers = [...state.playerTowers, ...state.cpuTowers];
   for(const t of allTowers){
@@ -809,7 +953,6 @@ function loop(timestamp){
     state.cpuElixir = Math.min(CONFIG.elixir.max, state.cpuElixir);
 
     cpuBehaviorTick(dt);
-
     simulate(dt);
 
     const mm = Math.floor(state.timeMs / 60000);
