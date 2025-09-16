@@ -3,94 +3,184 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Clash Royale 3D Mega Baseline</title>
+  <title>Clash Royale 3D — Mega Full</title>
   <style>
-    html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0b1220;font-family:sans-serif;color:#fff}
-    canvas{display:block;position:absolute;top:0;left:0;z-index:0;}
-    .ui{position:absolute;top:10px;left:10px;z-index:10;background:rgba(0,0,0,0.5);padding:10px;border-radius:8px}
-    button{margin:2px;padding:6px 12px;border:none;border-radius:4px;background:#1e90ff;color:#fff;cursor:pointer}
+    html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0b1220;font-family:Inter, Arial, sans-serif;color:#e6eef6}
+    #canvasHolder{position:absolute;left:0;top:0;right:420px;bottom:0;overflow:hidden}
+    #ui{position:absolute;top:12px;right:12px;width:392px;background:linear-gradient(180deg,rgba(6,12,16,0.96),rgba(3,6,8,0.9));padding:14px;border-radius:10px;box-shadow:0 20px 40px rgba(0,0,0,0.6);z-index:40}
+    .btn{padding:8px 10px;border-radius:8px;background:#0b2b2a;border:1px solid rgba(255,255,255,0.03);color:#dff7ff;cursor:pointer;margin-right:8px}
+    .muted{color:#9fb3bf;font-size:12px}
+    .deck{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+    .card{width:82px;height:100px;background:#e8eedc;color:#082;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;cursor:pointer}
+    .card.disabled{opacity:0.45;pointer-events:none}
+    #elixirBar{height:18px;background:#042;border-radius:9px;margin-top:8px;overflow:hidden}
+    #elixirFill{height:100%;width:0%;background:linear-gradient(180deg,#ffe26b,#ffc83a)}
+    #log{margin-top:10px;height:180px;overflow:auto;background:#021016;padding:8px;border-radius:6px;font-family:monospace;font-size:12px}
+    .small{font-size:12px;color:#9fb3bf}
+    footer{position:absolute;right:12px;bottom:12px;color:#789}
   </style>
 </head>
 <body>
-  <div class="ui">
-    <button id="spawnTroop">Spawn Troop</button>
-    <button id="spawnEnemy">Spawn Enemy</button>
-    <button id="reset">Reset</button>
+  <div id="canvasHolder"></div>
+  <div id="ui">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <strong>CLASH — MEGA FULL</strong>
+      <div class="muted">Bridges · Pathing · Combat</div>
+    </div>
+
+    <div style="margin-top:10px;display:flex;align-items:center">
+      <button id="btnPause" class="btn">Pause</button>
+      <button id="btnStep" class="btn">Step</button>
+      <button id="btnReset" class="btn">Reset</button>
+      <label style="margin-left:auto"><input id="debugToggle" type="checkbox"/> <span class="small muted">Debug</span></label>
+    </div>
+
+    <label class="muted" style="margin-top:10px">Deck / Elixir</label>
+    <div id="elixirBar"><div id="elixirFill"></div></div>
+    <div class="muted" id="elixirText">Elixir: 0 / 10</div>
+
+    <div class="deck" id="deck"></div>
+    <div class="muted" style="margin-top:8px">Click a card, then click anywhere on your side to deploy.</div>
+
+    <div id="log"></div>
   </div>
+  <footer>Drop into GitHub as <code>index.html</code></footer>
+
   <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+
   <script>
-    // Scene setup
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87CEEB); // Sky blue
+  // Full mega implementation built on visible baseline
 
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 50, 80);
-    camera.lookAt(0,0,0);
+  // Utilities
+  const logEl = document.getElementById('log');
+  function log(...args){ const s = new Date().toLocaleTimeString() + '  ' + args.map(a=> typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '); logEl.innerText = s + '
+' + logEl.innerText; if(logEl.innerText.length>30000) logEl.innerText = logEl.innerText.substr(0,30000); console.log(...args); }
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  function vdist(a,b){ const dx=a.x-b.x, dz=a.z-b.z; return Math.sqrt(dx*dx + dz*dz); }
+  function randRange(a,b){ return a + Math.random()*(b-a); }
+  function now(){ return performance.now() / 1000; }
 
-    const renderer = new THREE.WebGLRenderer({antialias:true});
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
-    document.body.appendChild(renderer.domElement);
+  // Renderer & camera
+  const container = document.getElementById('canvasHolder');
+  const WIDTH = Math.max(1000, window.innerWidth - 440), HEIGHT = window.innerHeight;
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x86c0d8);
+  scene.fog = new THREE.FogExp2(0x071019, 0.0022);
+  const camera = new THREE.PerspectiveCamera(50, WIDTH/HEIGHT, 0.1, 2000);
+  camera.position.set(0, 180, 360); camera.lookAt(0,12,0);
+  const renderer = new THREE.WebGLRenderer({ antialias:true }); renderer.setSize(WIDTH, HEIGHT); renderer.setPixelRatio(window.devicePixelRatio||1); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  container.appendChild(renderer.domElement);
+  const controls = new THREE.OrbitControls(camera, renderer.domElement); controls.target.set(0,12,0); controls.enablePan=false; controls.enableDamping=true; controls.minDistance=120; controls.maxDistance=520; controls.update();
 
-    // Lights
-    const ambient = new THREE.AmbientLight(0xffffff,0.6);
-    scene.add(ambient);
+  window.addEventListener('resize', ()=>{ const w = Math.max(900, window.innerWidth - 440); const h = window.innerHeight; renderer.setSize(w,h); camera.aspect = w/h; camera.updateProjectionMatrix(); });
 
-    const dirLight = new THREE.DirectionalLight(0xffffff,0.8);
-    dirLight.position.set(50,100,50);
-    dirLight.castShadow = true;
-    scene.add(dirLight);
+  // Lights
+  const hemi = new THREE.HemisphereLight(0xbbdffb, 0x080820, 0.6); scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xffffff, 0.95); sun.position.set(120,260,90); sun.castShadow=true; sun.shadow.mapSize.set(2048,2048); sun.shadow.camera.near=10; sun.shadow.camera.far=900; sun.shadow.camera.left=-400; sun.shadow.camera.right=400; sun.shadow.camera.top=400; sun.shadow.camera.bottom=-400; scene.add(sun);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.12); scene.add(ambient);
 
-    // Ground
-    const groundGeo = new THREE.PlaneGeometry(100,100);
-    const groundMat = new THREE.MeshPhongMaterial({color:0x228B22});
-    const ground = new THREE.Mesh(groundGeo,groundMat);
-    ground.rotation.x = -Math.PI/2;
-    ground.receiveShadow = true;
-    scene.add(ground);
+  // Arena
+  const ARENA_W = 300, ARENA_H = 420, RIVER_H = 54, BRIDGE_W = 60;
+  const arena = new THREE.Group(); scene.add(arena);
+  const groundMat = new THREE.MeshStandardMaterial({ color: 0x163f2e, roughness:0.95 });
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_W, ARENA_H), groundMat); ground.rotation.x = -Math.PI/2; ground.receiveShadow=true; arena.add(ground);
+  const riverMat = new THREE.MeshStandardMaterial({ color: 0x1e6b88, metalness:0.06, roughness:0.5 });
+  const river = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_W, RIVER_H), riverMat); river.rotation.x = -Math.PI/2; river.position.y = 0.02; river.receiveShadow=true; arena.add(river);
+  const bridgeGeom = new THREE.BoxGeometry(BRIDGE_W, 2, 120); const bridgeMat = new THREE.MeshStandardMaterial({ color:0x7d5a34, roughness:0.6 });
+  const bridgeL = new THREE.Mesh(bridgeGeom, bridgeMat); bridgeL.position.set(-64,0.5,0); bridgeL.receiveShadow=true; bridgeL.castShadow=true; arena.add(bridgeL);
+  const bridgeR = new THREE.Mesh(bridgeGeom, bridgeMat); bridgeR.position.set(64,0.5,0); bridgeR.receiveShadow=true; bridgeR.castShadow=true; arena.add(bridgeR);
 
-    // River
-    const riverGeo = new THREE.PlaneGeometry(100,20);
-    const riverMat = new THREE.MeshPhongMaterial({color:0x1E90FF});
-    const river = new THREE.Mesh(riverGeo,riverMat);
-    river.rotation.x = -Math.PI/2;
-    river.position.z = 0;
-    scene.add(river);
+  // Waypoints
+  const Lanes = {
+    left: [ new THREE.Vector3(-64,0,ARENA_H/2 - 46), new THREE.Vector3(-64,0,52), new THREE.Vector3(-64,0,0), new THREE.Vector3(-64,0,-52), new THREE.Vector3(-64,0,-ARENA_H/2 + 46) ],
+    right:[ new THREE.Vector3(64,0,ARENA_H/2 - 46),  new THREE.Vector3(64,0,52),  new THREE.Vector3(64,0,0),  new THREE.Vector3(64,0,-52),  new THREE.Vector3(64,0,-ARENA_H/2 + 46) ]
+  };
 
-    // Bridges
-    const bridgeGeo = new THREE.BoxGeometry(20,1,5);
-    const bridgeMat = new THREE.MeshPhongMaterial({color:0x8B4513});
-    const bridgeLeft = new THREE.Mesh(bridgeGeo,bridgeMat);
-    bridgeLeft.position.set(-25,0.5,0);
-    const bridgeRight = bridgeLeft.clone();
-    bridgeRight.position.set(25,0.5,0);
-    scene.add(bridgeLeft,bridgeRight);
+  // debug markers
+  const debugGroup = new THREE.Group(); debugGroup.visible = false; scene.add(debugGroup);
+  function rebuildDebug(){ debugGroup.clear(); const preMat=new THREE.MeshBasicMaterial({color:0x2ea0ff}); const postMat=new THREE.MeshBasicMaterial({color:0xff4c4c}); const preG=new THREE.SphereGeometry(3.2,12,12); const postG=new THREE.SphereGeometry(3.6,12,12); for(const s of ['left','right']){ const lane=Lanes[s]; const pre=new THREE.Mesh(preG,preMat); pre.position.copy(lane[1]); pre.position.y=4; debugGroup.add(pre); const post=new THREE.Mesh(postG,postMat); post.position.copy(lane[2]); post.position.y=4; debugGroup.add(post); for(let i=0;i<lane.length;i++){ const g=new THREE.Mesh(new THREE.SphereGeometry(1.6,8,8), new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.06})); g.position.copy(lane[i]); g.position.y=2; debugGroup.add(g); } } }
+  rebuildDebug();
 
-    // Towers (placeholders)
-    const towerGeo = new THREE.CylinderGeometry(3,3,12,32);
-    const towerMat = new THREE.MeshPhongMaterial({color:0xaaaaaa});
-    const tower1 = new THREE.Mesh(towerGeo,towerMat);
-    tower1.position.set(-30,6,-30);
-    const tower2 = tower1.clone(); tower2.position.set(30,6,-30);
-    const tower3 = tower1.clone(); tower3.position.set(0,6,-40);
-    const tower4 = tower1.clone(); tower4.position.set(-30,6,30);
-    const tower5 = tower1.clone(); tower5.position.set(30,6,30);
-    const tower6 = tower1.clone(); tower6.position.set(0,6,40);
-    scene.add(tower1,tower2,tower3,tower4,tower5,tower6);
+  // World pools
+  const World = { troops: [], towers: [], projectiles: [], effects: [] };
 
-    // Resize handling
-    window.addEventListener('resize',()=>{
-      camera.aspect = window.innerWidth/window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth,window.innerHeight);
-    });
+  // Texture loader placeholders
+  const texLoader = new THREE.TextureLoader(); let towerDiffuse=null, towerNormal=null;
+  texLoader.load('textures/tower_diffuse.png', t=>{ towerDiffuse=t; towerDiffuse.encoding=THREE.sRGBEncoding; log('Loaded tower_diffuse.png'); }, undefined, ()=>{ log('No tower_diffuse.png — using color fallback'); });
+  texLoader.load('textures/tower_normal.png', t=>{ towerNormal=t; log('Loaded tower_normal.png'); }, undefined, ()=>{});
 
-    // Animation loop
-    function animate(){
-      requestAnimationFrame(animate);
-      renderer.render(scene,camera);
-    }
-    animate();
+  function towerMaterial(team){ if(towerDiffuse) return new THREE.MeshStandardMaterial({ map: towerDiffuse, normalMap: towerNormal||null, metalness:0.05, roughness:0.6 }); const col = team==='player'?0x2f7a47:0x7a2f2f; return new THREE.MeshStandardMaterial({ color: col, metalness:0.05, roughness:0.6 }); }
+
+  function createHealthBar(width=28){ const g=new THREE.Group(); const back=new THREE.Mesh(new THREE.PlaneGeometry(width,3), new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.6})); const front=new THREE.Mesh(new THREE.PlaneGeometry(width-2,2.2), new THREE.MeshBasicMaterial({color:0x33ff88})); front.name='hpFront'; front.position.z=0.01; back.add(front); g.add(back); g.position.y=36; return g; }
+  function makeTowerMesh(kind,team){ const geo=new THREE.CylinderGeometry(14,14,34,14); const mat=towerMaterial(team); const m=new THREE.Mesh(geo,mat); m.castShadow=true; m.receiveShadow=true; return m; }
+  function makeTroopMesh(team,size){ const col = team==='player'?0xffe0b0:0xffb0b0; const geo=new THREE.BoxGeometry(size,size,size); const mat=new THREE.MeshStandardMaterial({color:col,roughness:0.6}); const m=new THREE.Mesh(geo,mat); m.castShadow=true; m.receiveShadow=true; return m; }
+
+  // Tower class
+  function Tower(opts){ this.team=opts.team; this.kind=opts.kind; this.pos=opts.pos.clone(); this.baseHP=(this.kind==='king')?1900:1100; this.hp=this.baseHP; this.baseDamage=(this.kind==='king')?110:55; this.baseRange=(this.kind==='king')?150:120; this.baseFireRate=1.0; this.damage=this.baseDamage; this.range=this.baseRange; this.fireRate=this.baseFireRate; this.cooldown=0; this.mesh=makeTowerMesh(this.kind,this.team); this.mesh.position.set(this.pos.x,18,this.pos.z); this.hpBar=createHealthBar(28); this.hpBar.position.set(this.pos.x,46,this.pos.z); scene.add(this.mesh); scene.add(this.hpBar); this.id=this.team+'-'+this.kind; }
+  Tower.prototype.updateVisual=function(){ const front=this.hpBar.children[0].getObjectByName('hpFront'); if(front){ const pct=clamp(this.hp/this.baseHP,0,1); front.scale.x=pct; front.position.x=-( (28-2) * (1 - pct) ) / 2; } if(this.hp<=0){ if(this.mesh.material) this.mesh.material.color && this.mesh.material.color.setHex(0x333333); } };
+  Tower.prototype.canTarget=function(candidate){ if(!candidate||candidate.hp<=0) return false; if(Math.sign(this.pos.z)!==Math.sign(candidate.mesh.position.z)) return false; const d=vdist(this.pos,candidate.mesh.position); const touchThresh=(candidate.size||8)+14; if(!candidate.crossedBridge && d>this.range && d>touchThresh) return false; return d<=this.range || d<=touchThresh; };
+  Tower.prototype.tryFire=function(dt){ if(this.hp<=0) return; if(this.cooldown>0){ this.cooldown-=dt; return; } if(this.kind==='king'){ const princes=World.towers.filter(t=>t.team===this.team && t.kind==='princess'); if(princes.some(p=>p.hp>0)) return; } let best=null,bd=Infinity; for(const u of World.troops){ if(u.team===this.team) continue; if(u.hp<=0) continue; if(!this.canTarget(u)) continue; const d=vdist(this.pos,u.mesh.position); if(d<bd){ bd=d; best=u; } } if(best){ spawnProjectile(this.pos.clone(), best, this.damage, this.team); this.cooldown = Math.max(0.02, 1.0/(this.fireRate||1.0)); } };
+
+  // Projectiles
+  function spawnProjectile(fromVec,targetUnit,power,team){ const geo=new THREE.SphereGeometry(2.6,8,8); const mat=new THREE.MeshBasicMaterial({color:team==='player'?0x99ffcc:0xffc0c0}); const mesh=new THREE.Mesh(geo,mat); mesh.position.copy(fromVec); mesh.position.y=20; scene.add(mesh); World.projectiles.push({mesh,target:targetUnit,power,speed:320,dead:false,team}); }
+  function updateProjectiles(dt){ for(const p of World.projectiles){ if(p.dead) continue; if(!p.target||p.target.hp<=0){ p.dead=true; scene.remove(p.mesh); continue; } const tpos = p.target.mesh ? p.target.mesh.position : p.target.pos; const dx=tpos.x-p.mesh.position.x, dz=tpos.z-p.mesh.position.z; const d=Math.sqrt(dx*dx+dz*dz); if(d<4.2){ p.target.hp=Math.max(0,p.target.hp-p.power); p.dead=true; spawnImpact(p.mesh.position.clone(),p.team); scene.remove(p.mesh); } else { const nx=dx/d, nz=dz/d; const move=p.speed*dt; p.mesh.position.x+=nx*move; p.mesh.position.z+=nz*move; } } for(let i=World.projectiles.length-1;i>=0;--i) if(World.projectiles[i].dead) World.projectiles.splice(i,1); }
+  function spawnImpact(pos,team){ const geo=new THREE.PlaneGeometry(8,8); const mat=new THREE.MeshBasicMaterial({color:team==='player'?0x99ffcc:0xffc0c0,transparent:true,opacity:0.9,side:THREE.DoubleSide}); const mesh=new THREE.Mesh(geo,mat); mesh.rotation.x=-Math.PI/2; mesh.position.copy(pos); mesh.position.y=6; scene.add(mesh); World.effects.push({mesh,life:0.25}); }
+  function updateEffects(dt){ for(const e of World.effects){ e.life-=dt; if(e.mesh&&e.mesh.material) e.mesh.material.opacity=Math.max(0,e.life/0.25); if(e.life<=0){ try{ scene.remove(e.mesh);}catch(_){} } } for(let i=World.effects.length-1;i>=0;--i) if(World.effects[i].life<=0) World.effects.splice(i,1); }
+
+  // Troop
+  function Troop(opts){ this.team=opts.team; this.name=opts.template.name||'Troop'; this.maxHp=opts.template.hp||200; this.hp=this.maxHp; this.dmg=opts.template.dmg||24; this.speed=(opts.template.speed||45)/60; this.range=(opts.template.range||10)/60; this.projectile=!!opts.template.projectile; this.size=opts.template.size||8; this.path=opts.path.map(p=>p.clone()); this.waypointIndex=(this.team==='player')?1:(this.path.length-2); this.crossedBridge=false; this.mesh=makeTroopMesh(this.team,this.size); this.mesh.position.copy(opts.pos); this.mesh.position.y=this.size/2; const hp=createHealthBar(Math.max(18,this.size*2.2)); this.mesh.add(hp); hp.position.set(0,this.size+6,0); this.target=null; this.state='moving'; this.attackCooldown=0; this.id='troop-'+Math.random().toString(36).slice(2,9); scene.add(this.mesh); World.troops.push(this); }
+  Troop.prototype.updateVisual=function(){ const front=this.mesh.children[0].getObjectByName('hpFront'); if(front){ const width = front.geometry.parameters.width || 20; const pct=clamp(this.hp/this.maxHp,0,1); front.scale.x=pct; front.position.x=-( width * (1 - pct) ) / 2; } };
+  Troop.prototype.findTarget=function(){ let best=null,bd=Infinity; for(const u of World.troops){ if(u.team===this.team||u.hp<=0) continue; const d=vdist(this.mesh.position,u.mesh.position); if(d<bd){bd=d;best=u;} } if(best) return best; for(const t of World.towers){ if(t.team===this.team||t.hp<=0) continue; const d=vdist(this.mesh.position,t.pos); if(d<bd){bd=d;best=t;} } return best; };
+  Troop.prototype.update=function(dt){ if(this.hp<=0) return; if(this.target && this.target.hp<=0){ this.target=null; this.state='moving'; } if(!this.target) this.target=this.findTarget(); if(this.path && this.path[2]){ const postZ=this.path[2].z; if(this.team==='player'){ if(this.mesh.position.z <= postZ + 1) this.crossedBridge = true; } else { if(this.mesh.position.z >= postZ - 1) this.crossedBridge = true; } }
+    // melee vs troops
+    const enemies = World.troops.filter(t=>t.team!==this.team && t.hp>0);
+    for(const e of enemies){ const d=vdist(this.mesh.position,e.mesh.position); if(d <= (this.size + e.size)/2 + 1.2){ if(this.attackCooldown<=0){ this.attackCooldown=1.0; e.hp=Math.max(0,e.hp-this.dmg); spawnImpact(this.mesh.position.clone(),this.team); } return; } }
+    // attack towers if close
+    for(const tw of World.towers){ if(tw.team===this.team||tw.hp<=0) continue; const d=vdist(this.mesh.position,tw.pos); if(d <= (this.size/2)+14+1.2){ if(this.attackCooldown<=0){ this.attackCooldown=1.0; tw.hp=Math.max(0,tw.hp-this.dmg); spawnImpact(this.mesh.position.clone(),this.team); } return; } }
+    // movement
+    if(this.state==='moving'){ if(this.waypointIndex >= this.path.length){ if(this.target) this.moveToward(this.target.mesh?this.target.mesh.position:this.target.pos,dt); } else { const wp=this.path[this.waypointIndex]; const dwp=vdist(this.mesh.position,wp); if(dwp < 2.5) this.waypointIndex++; else this.moveToward(wp,dt); } }
+    if(this.attackCooldown>0) this.attackCooldown -= dt;
+  };
+  Troop.prototype.moveToward=function(vec,dt){ const cur=this.mesh.position; const dx=vec.x-cur.x, dz=vec.z-cur.z; const d=Math.sqrt(dx*dx+dz*dz); if(d<0.001) return; const nx=dx/d, nz=dz/d; const move=Math.min(this.speed*dt*60,d); this.mesh.position.x += nx*move; this.mesh.position.z += nz*move; this.mesh.position.y = this.size/2; };
+
+  // Game state & ai
+  const Game = { elixir:4, elixirMax:10, elixirRate:1, paused:false, placementZone:{ xMin:-92,xMax:92,zMin:ARENA_H/2 - 160, zMax:ARENA_H/2 -30 }, deckTemplates:[ {name:'Knight',hp:420,dmg:48,speed:40,range:8,projectile:false,cost:3,size:10},{name:'Archer',hp:200,dmg:28,speed:56,range:120,projectile:true,cost:3,size:6},{name:'Giant',hp:1100,dmg:62,speed:32,range:12,projectile:false,cost:5,size:14},{name:'Hog',hp:320,dmg:60,speed:115,range:10,projectile:false,cost:4,size:10},{name:'Minis',hp:140,dmg:18,speed:85,range:8,projectile:false,cost:2,size:6}], selectedCard:null, ai:{elixir:4,spawnIntervalMin:1.2,spawnIntervalMax:3.0,lastSpawnAttempt:0} };
+
+  function spawnAllTowers(){ for(const t of World.towers){ try{ scene.remove(t.mesh); scene.remove(t.hpBar);}catch(_){} } World.towers.length=0; const pL=new Tower({team:'player',kind:'princess',pos:new THREE.Vector3(-64,0,ARENA_H/2 -92)}); const pR=new Tower({team:'player',kind:'princess',pos:new THREE.Vector3(64,0,ARENA_H/2 -92)}); const pK=new Tower({team:'player',kind:'king',pos:new THREE.Vector3(0,0,ARENA_H/2 -44)}); const eL=new Tower({team:'enemy',kind:'princess',pos:new THREE.Vector3(-64,0,-ARENA_H/2 +92)}); const eR=new Tower({team:'enemy',kind:'princess',pos:new THREE.Vector3(64,0,-ARENA_H/2 +92)}); const eK=new Tower({team:'enemy',kind:'king',pos:new THREE.Vector3(0,0,-ARENA_H/2 +44)}); World.towers.push(pL,pR,pK,eL,eR,eK); for(const t of World.towers) t.updateVisual(); }
+
+  function spawnTroopFromCard(card, worldPos){ if(worldPos.z < Game.placementZone.zMin || worldPos.z > Game.placementZone.zMax || worldPos.x < Game.placementZone.xMin || worldPos.x > Game.placementZone.xMax){ log('Placement outside allowed area'); return; } if(Game.elixir < card.cost){ log('Not enough elixir'); return; } Game.elixir -= card.cost; updateElixirUI(); const laneName = worldPos.x < 0 ? 'left' : 'right'; const lane = Lanes[laneName]; const spawnPos = worldPos.clone(); spawnPos.y = 0; spawnPos.z = clamp(spawnPos.z, Game.placementZone.zMin, Game.placementZone.zMax); const tpl = {...card}; const t=new Troop({team:'player',template:tpl,pos:spawnPos,path:lane}); t.name=tpl.name; t.maxHp=tpl.hp; t.hp=tpl.hp; t.dmg=tpl.dmg; t.speed=tpl.speed; t.range=tpl.range; t.projectile=!!tpl.projectile; log('Player spawned', t.name); }
+
+  function aiTick(dt){ Game.ai.elixir = clamp(Game.ai.elixir + Game.elixirRate * dt,0,Game.elixirMax); Game.ai.lastSpawnAttempt += dt; const next = randRange(Game.ai.spawnIntervalMin, Game.ai.spawnIntervalMax); if(Game.ai.lastSpawnAttempt >= next){ Game.ai.lastSpawnAttempt = 0; const candidate = Game.deckTemplates[Math.floor(Math.random()*Game.deckTemplates.length)]; if(Game.ai.elixir >= candidate.cost){ const laneChoice = Math.random()<0.5?'left':'right'; const lane = Lanes[laneChoice]; const spawnPos = lane[lane.length -1].clone(); spawnPos.x += (Math.random()-0.5)*28; aiSpawnTroop(candidate, spawnPos, lane); Game.ai.elixir -= candidate.cost; log('AI spawned', candidate.name, 'on', laneChoice); } } }
+  function aiSpawnTroop(card, worldPos, path){ const spawnPos=worldPos.clone(); spawnPos.y=0; const t=new Troop({team:'enemy',template:card,pos:spawnPos,path:path}); t.name=card.name; t.maxHp=card.hp; t.hp=card.hp; t.dmg=card.dmg; t.speed=card.speed; t.range=card.range; t.projectile=!!card.projectile; }
+
+  // Input: screen->world
+  const raycaster = new THREE.Raycaster(); const mouse = new THREE.Vector2(); function screenToWorld(x,y){ const rect=renderer.domElement.getBoundingClientRect(); mouse.x = ((x-rect.left)/rect.width)*2 - 1; mouse.y = -((y-rect.top)/rect.height)*2 + 1; raycaster.setFromCamera(mouse, camera); const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0); const p = new THREE.Vector3(); raycaster.ray.intersectPlane(plane, p); return p; }
+  renderer.domElement.addEventListener('pointerdown', ev=>{ const p=screenToWorld(ev.clientX, ev.clientY); if(Game.selectedCard){ spawnTroopFromCard(Game.selectedCard, p); Game.selectedCard=null; highlightSelected(null); } });
+
+  // Deck UI
+  const deckEl = document.getElementById('deck'); function buildDeckUI(){ deckEl.innerHTML=''; for(const tpl of Game.deckTemplates){ const d=document.createElement('div'); d.className='card'; d.innerHTML=`<div style="font-weight:700">${tpl.name}</div><div class="muted">${tpl.cost} elixir</div>`; d.addEventListener('click', ()=>{ if(Game.elixir >= tpl.cost){ Game.selectedCard = tpl; highlightSelected(d);} else log('Not enough elixir'); }); deckEl.appendChild(d); } }
+  function highlightSelected(node){ Array.from(deckEl.children).forEach(c=>c.style.boxShadow=''); if(node) node.style.boxShadow='0 0 0 4px rgba(50,200,255,0.12)'; }
+  function updateElixirUI(){ const pct = Math.round((Game.elixir/Game.elixirMax)*100); document.getElementById('elixirFill').style.width = pct + '%'; document.getElementById('elixirText').innerText = 'Elixir: ' + Math.floor(Game.elixir) + ' / ' + Game.elixirMax; Array.from(deckEl.children).forEach((c,i)=>{ const tpl = Game.deckTemplates[i]; if(Game.elixir < tpl.cost) c.classList.add('disabled'); else c.classList.remove('disabled'); }); }
+
+  // Cleanup
+  function cleanupDead(){ for(let i=World.troops.length-1;i>=0;--i){ if(World.troops[i].hp<=0){ try{ scene.remove(World.troops[i].mesh);}catch(e){} World.troops.splice(i,1); } } for(let i=World.projectiles.length-1;i>=0;--i){ if(World.projectiles[i].dead){ try{ scene.remove(World.projectiles[i].mesh);}catch(e){} World.projectiles.splice(i,1); } } }
+
+  // Main loop
+  let last = now(); function animate(){ requestAnimationFrame(animate); const t = now(); const dt = clamp(t-last,0,0.06); last = t; if(!Game.paused){ Game.elixir = clamp(Game.elixir + Game.elixirRate * dt, 0, Game.elixirMax); updateElixirUI(); aiTick(dt); for(const tw of World.towers) tw.tryFire(dt); updateProjectiles(dt); for(const u of World.troops) u.update(dt); for(const t of World.towers) t.updateVisual(); for(const u of World.troops) u.updateVisual(); updateEffects(dt); cleanupDead(); const pKing = World.towers.find(t=>t.team==='player'&&t.kind==='king'); const eKing = World.towers.find(t=>t.team==='enemy'&&t.kind==='king'); if(pKing&&pKing.hp<=0){ Game.paused=true; log('Enemy wins!'); } if(eKing&&eKing.hp<=0){ Game.paused=true; log('Player wins!'); } } controls.update(); renderer.render(scene, camera); }
+
+  // Buttons
+  document.getElementById('btnPause').addEventListener('click', ()=>{ Game.paused=!Game.paused; document.getElementById('btnPause').innerText = Game.paused ? 'Resume' : 'Pause'; });
+  document.getElementById('btnStep').addEventListener('click', ()=>{ if(Game.paused){ Game.paused=false; last = now(); setTimeout(()=>{ Game.paused = true; }, 30); } });
+  document.getElementById('btnReset').addEventListener('click', ()=>{ for(const t of World.towers){ try{ scene.remove(t.mesh); scene.remove(t.hpBar);}catch(e){} } for(const u of World.troops){ try{ scene.remove(u.mesh);}catch(e){} } for(const p of World.projectiles){ try{ scene.remove(p.mesh);}catch(e){} } for(const e of World.effects){ try{ scene.remove(e.mesh);}catch(e){} } World.troops.length=0; World.towers.length=0; World.projectiles.length=0; World.effects.length=0; Game.elixir=4; Game.ai.elixir=4; updateElixirUI(); spawnAllTowers(); buildDeckUI(); Game.selectedCard=null; highlightSelected(null); log('World reset'); });
+  document.getElementById('debugToggle').addEventListener('change', e=>{ debugGroup.visible = e.target.checked; });
+
+  // Init
+  Game.recomputePlacementZones = function(){ const m=1.4; const baseW=170, baseH=140; const w=baseW*m, h=baseH*m; this.placementZone.xMin = -w/2; this.placementZone.xMax = w/2; this.placementZone.zMin = ARENA_H/2 - h - 10; this.placementZone.zMax = ARENA_H/2 - 30; };
+  Game.recomputePlacementZones(); spawnAllTowers(); buildDeckUI(); updateElixirUI(); animate(); log('Mega Full loaded — arena visible, pathing + combat re-enabled');
+
+  // expose
+  window.ClashMega = { scene, camera, renderer, World, Game, Lanes, debugGroup };
   </script>
 </body>
 </html>
