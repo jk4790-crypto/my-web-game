@@ -64,12 +64,11 @@
 
   <script>
   /******************************************************************
-   * MegaFixes 3D — Waypoints Visible
-   * - Bridge pre/post waypoint markers added (blue / red spheres)
-   * - Troops spawn anywhere on player half; pick nearest lane and follow:
-   *   spawn -> pre-bridge waypoint -> post-bridge waypoint -> target tower
-   * - Towers only target troops that have crossed the post-bridge waypoint
-   * - Keeps previous fixes: forward spawn, tuned tower damage/range, simple AI
+   * MegaFixes 3D — Waypoints Visible (UPDATED)
+   * - Troop crossedBridge uses world-position check (robust)
+   * - Towers target troops that crossed the bridge; BUT also target
+   *   troops that are immediately close (touching) even if not crossed.
+   * - Keeps everything else: 3D, deck, elixir, UI.
    ******************************************************************/
 
   // -------------------- Utilities & small helpers --------------------
@@ -239,17 +238,12 @@
   };
 
   // Only target troops that have crossed the bridge (troop.crossedBridge = true) AND that are on the same side (z sign).
-  Tower.prototype.canTarget = function(candidate){
+  // But we'll also allow 'touching' troops even if they haven't flipped crossedBridge yet (prevents odd ignores).
+  Tower.prototype.canTargetByDistanceAndSide = function(candidate){
     if(!candidate) return false;
     if(candidate.hp <= 0) return false;
-    // if candidate is troop object
-    if(candidate.crossedBridge !== undefined){
-      if(!candidate.crossedBridge) return false; // hasn't crossed yet -> cannot be targeted
-      // now require candidate to be on same side of river as tower (sign check)
-      if(Math.sign(this.pos.z) !== Math.sign(candidate.mesh.position.z)) return false;
-      return true;
-    }
-    // if candidate is a tower (rare) allow (used for targeting towers)
+    // require same side sign (king/princess are placed with z sign)
+    if(Math.sign(this.pos.z) !== Math.sign(candidate.mesh.position.z)) return false;
     return true;
   };
 
@@ -261,24 +255,36 @@
       const anyAlive = teamPrincesses.some(p=>p.hp > 0);
       if(anyAlive) return; // king sleeping
     }
-    let best=null, bd=Infinity;
+
+    let best = null, bd = Infinity;
     for(const u of World.troops){
       if(u.team === this.team) continue;
       if(u.hp <= 0) continue;
-      if(!this.canTarget(u)) continue;
+      if(!this.canTargetByDistanceAndSide(u)) continue;
+
       const d = vdist(this.pos, u.mesh.position);
-      if(d <= this.range && d < bd){ bd = d; best = u; }
+      // allow targeting if troop already crossedBridge OR if d is within immediate touching distance (so towers don't completely ignore troops that are essentially on top of tower)
+      const touchingThreshold = (u.size || 6) + 12; // troop size + tower half-size approx
+      if(!u.crossedBridge && d > this.range && d > touchingThreshold) continue;
+      if(d <= this.range && d < bd){
+        bd = d; best = u;
+      } else if(d <= touchingThreshold && d < bd){
+        // immediate touch: still allow
+        bd = d; best = u;
+      }
     }
+
     if(best){
       spawnProjectile(this.pos.clone(), best, this.damage, this.team);
-      this.cooldown = 1.0 / this.fireRate;
+      // cooldown based on fireRate (fireRate is attacks per second)
+      this.cooldown = Math.max(0.02, 1.0 / (this.fireRate || 1.0));
     }
   };
 
   // -------------------- Projectiles --------------------
   function spawnProjectile(fromVec, targetUnit, power, team){
     const geo = new THREE.SphereGeometry(1.8,8,8);
-    const mat = new THREE.MeshBasicMaterial({color:0xffdddd});
+    const mat = new THREE.MeshBasicMaterial({color: team === 'player' ? 0x99ffcc : 0xffc0c0});
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.copy(fromVec); mesh.position.y = 10;
     scene.add(mesh);
@@ -296,14 +302,14 @@
       if(d < 3){
         p.target.hp = Math.max(0, p.target.hp - p.power);
         p.dead = true; scene.remove(p.mesh);
-        log('Projectile hit', (p.target.team? p.target.team + '-' + p.target.name : p.target.id), 'hp->', Math.round(p.target.hp));
+        log('Projectile hit', (p.target.team? p.target.team + '-' + (p.target.name||p.target.id) : p.target.id), 'hp->', Math.round(p.target.hp));
       } else {
         const nx = dx / d, nz = dz / d;
         const move = p.speed * dt;
         p.mesh.position.x += nx * move; p.mesh.position.z += nz * move;
       }
     }
-    for(let i = World.projectiles.length -1; i>=0; --i) if(World.projectiles[i].dead) World.projectiles.splice(i,1);
+    for(let i = World.projectiles.length -1; i>=0; --i) if(World.projectiles[i].dead){ World.projectiles.splice(i,1); }
   }
 
   // -------------------- Troop --------------------
@@ -321,7 +327,7 @@
     // IMPORTANT: choose starting waypoint index to avoid backwards motion
     // Start at 1 (pre-bridge) so troop moves forward immediately
     this.waypointIndex = (this.team === 'player') ? 1 : (this.path.length - 2);
-    this.crossedBridge = false; // will flip true once waypointIndex >= postBridgeIndex (which is 2)
+    this.crossedBridge = false; // will flip true once we pass the post-bridge coordinate (robust check below)
     this.mesh = new THREE.Mesh(new THREE.BoxGeometry(this.size, this.size, this.size), new THREE.MeshLambertMaterial({color: (this.team==='player'?0xffe0b0:0xffb0b0)}));
     // spawn position set by caller
     this.mesh.position.copy(opts.pos); this.mesh.position.y = this.size/2;
@@ -349,8 +355,18 @@
     if(this.target && this.target.hp <= 0){ this.target = null; this.state = 'moving'; }
     if(!this.target) this.target = this.findTarget();
 
-    // update crossedBridge flag when we pass the post-bridge waypoint index (index 2)
-    if(this.waypointIndex >= 2) this.crossedBridge = true;
+    // update crossedBridge flag using world-position vs post-bridge Z (robust)
+    // post-bridge waypoint is path[2]
+    if(this.path && this.path[2]){
+      const postZ = this.path[2].z;
+      if(this.team === 'player'){
+        // player troops move from +z toward -z
+        if(this.mesh.position.z <= postZ + 1) this.crossedBridge = true;
+      } else {
+        // enemy troops move from -z toward +z
+        if(this.mesh.position.z >= postZ - 1) this.crossedBridge = true;
+      }
+    }
 
     if(this.target){
       const targetPos = (this.target.mesh) ? this.target.mesh.position : this.target.pos;
@@ -388,7 +404,9 @@
     if(this.projectile){
       spawnProjectile(this.mesh.position.clone(), this.target, this.dmg, this.team);
     } else {
-      this.target.hp = Math.max(0, this.target.hp - this.dmg);
+      if(this.target && this.target.hp !== undefined){
+        this.target.hp = Math.max(0, this.target.hp - this.dmg);
+      }
     }
     this.attackCooldown = 1.0;
   };
@@ -418,6 +436,8 @@
     const eKing = new Tower({team:'enemy', kind:'king', pos:new THREE.Vector3(0,0, -ARENA_H/2 + 40)});
     World.towers.push(pLeft,pRight,pKing,eLeft,eRight,eKing);
     for(const t of World.towers) t.updateVisual();
+    // apply multipliers now (ensures range/fireRate/damage is correct)
+    Game.applyTowerMultipliers();
   }
 
   Game.recomputePlacementZones = function(){
@@ -426,7 +446,6 @@
     const w = baseW * m, h = baseH * m;
     this.placementZone.xMin = -w/2; this.placementZone.xMax = w/2;
     this.placementZone.zMin = ARENA_H/2 - h - 10; this.placementZone.zMax = ARENA_H/2 - 30;
-    // debug: show zone as markers (not rendered here—waypoints suffice)
   };
 
   Game.applyTowerMultipliers = function(){
@@ -434,6 +453,9 @@
       t.damage = Math.round(t.baseDamage * Inspector.dmgMul);
       t.range = Math.round(t.baseRange * Inspector.rangeMul);
       t.fireRate = Math.max(0.05, t.baseFireRate * Inspector.rateMul);
+      // hp multiplier
+      t.baseHP = Math.round((t.kind === 'king' ? 1600 : 1000) * Inspector.hpMul);
+      if(t.hp > t.baseHP) t.hp = t.baseHP;
       t.updateVisual();
     }
     log('Applied tower multipliers');
@@ -449,13 +471,9 @@
     // choose lane nearest by x
     const laneName = (worldPos.x < 0) ? 'left' : 'right';
     const lane = Lanes[laneName];
-    // spawnPos = clicked location (free placement) but snap z to spawn anchor z so they start at correct lane depth
     const spawnPos = worldPos.clone();
     spawnPos.y = 0;
-    // For better pathing start them slightly behind the pre-bridge (if user placed too close to bridge)
-    // But keep spawn exactly at clicked X so horizontal placement is preserved
     spawnPos.z = clamp(spawnPos.z, Game.placementZone.zMin, Game.placementZone.zMax);
-    // Create troop: set path = lane, pos = spawnPos
     const troop = new Troop({team:'player', template:cardTemplate, pos: spawnPos, path: lane});
     troop.name = cardTemplate.name;
     troop.maxHp = cardTemplate.hp; troop.hp = cardTemplate.hp; troop.dmg = cardTemplate.dmg;
@@ -541,9 +559,9 @@
   // -------------------- Cleanup helper --------------------
   function cleanupDead(){
     for(let i = World.troops.length - 1; i >= 0; --i){
-      if(World.troops[i].hp <= 0){ scene.remove(World.troops[i].mesh); World.troops.splice(i,1); }
+      if(World.troops[i].hp <= 0){ try{ scene.remove(World.troops[i].mesh); }catch(e){}; World.troops.splice(i,1); }
     }
-    for(let i = World.projectiles.length -1; i>=0; --i){ if(World.projectiles[i].dead) World.projectiles.splice(i,1); }
+    for(let i = World.projectiles.length -1; i>=0; --i){ if(World.projectiles[i].dead){ try{ scene.remove(World.projectiles[i].mesh); }catch(e){}; World.projectiles.splice(i,1); } }
   }
 
   // -------------------- Main loop --------------------
@@ -585,7 +603,7 @@
 
   // -------------------- Init --------------------
   Game.recomputePlacementZones(); spawnAllTowers(); buildDeckUI(); updateElixirUI(); animate();
-  log('MegaFixes 3D — waypoints added (visible) — spawn anywhere on player half and troops follow pre->post->tower.');
+  log('MegaFixes 3D — waypoints added (visible) — spawn anywhere on player half and troops follow pre->post->tower. Pathing & tower targeting updated.');
 
   // expose for debugging
   window.MegaFixes3D = { scene, camera, renderer, World, Game, Inspector, Lanes, WaypointMarkers };
