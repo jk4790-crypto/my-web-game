@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<title>MegaFixes 3D v2 — Path & AI fixes</title>
+<title>MegaFixes 3D — Waypoints Visible (Debug)</title>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <style>
   html,body { height:100%; margin:0; background:#071019; color:#e6eef6; font-family:Inter, Arial, sans-serif; }
@@ -27,8 +27,8 @@
 
   <div id="ui">
     <div style="display:flex;justify-content:space-between;align-items:center">
-      <strong>MegaFixes 3D — v2</strong>
-      <div class="small muted">AI & range fixes</div>
+      <strong>MegaFixes 3D — Waypoints Debug</strong>
+      <div class="small muted">Blue = pre-bridge, Red = post-bridge</div>
     </div>
 
     <div id="controls">
@@ -54,25 +54,25 @@
 
     <div class="deck" id="deck"></div>
 
-    <label class="muted">Click a card, then click the green placement area to deploy (player side).</label>
+    <label class="muted">Click a card, then click anywhere on your side to deploy (free placement).</label>
 
     <div id="log"></div>
   </div>
 
-  <!-- Three.js CDN -->
+  <!-- Three.js -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 
   <script>
   /******************************************************************
-   * MegaFixes 3D v2
-   * Fixes:
-   * - troop spawn/backwards issue
-   * - tower damage & rate tuned down
-   * - tower ranges tightened: only attack targets on same side of river
-   * - simple opponent AI that spawns troops (elixir-based)
+   * MegaFixes 3D — Waypoints Visible
+   * - Bridge pre/post waypoint markers added (blue / red spheres)
+   * - Troops spawn anywhere on player half; pick nearest lane and follow:
+   *   spawn -> pre-bridge waypoint -> post-bridge waypoint -> target tower
+   * - Towers only target troops that have crossed the post-bridge waypoint
+   * - Keeps previous fixes: forward spawn, tuned tower damage/range, simple AI
    ******************************************************************/
 
-  // --------- Utilities & logging ----------
+  // -------------------- Utilities & small helpers --------------------
   const logEl = document.getElementById('log');
   function log(...args){
     const s = new Date().toLocaleTimeString() + '  ' + args.map(a=> (typeof a==='object'?JSON.stringify(a):a)).join(' ');
@@ -83,8 +83,9 @@
   function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
   function vdist(a,b){ const dx=a.x-b.x, dz=a.z-b.z; return Math.sqrt(dx*dx + dz*dz); }
   function now(){ return performance.now() / 1000; }
+  function randRange(a,b){ return a + Math.random()*(b-a); }
 
-  // --------- Three.js scene ----------
+  // -------------------- Three.js setup --------------------
   const container = document.getElementById('canvasHolder');
   const W = Math.max(900, window.innerWidth - 420);
   const H = window.innerHeight;
@@ -97,13 +98,10 @@
   renderer.setPixelRatio(window.devicePixelRatio || 1);
   container.appendChild(renderer.domElement);
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-  scene.add(ambient);
-  const dir = new THREE.DirectionalLight(0xffffff, 0.6);
-  dir.position.set(100,200,100);
-  scene.add(dir);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.6); scene.add(ambient);
+  const dir = new THREE.DirectionalLight(0xffffff, 0.6); dir.position.set(100,200,100); scene.add(dir);
 
-  // --------- Inspector / UI values ----------
+  // -------------------- Inspector / UI values --------------------
   const Inspector = {
     placementMul: parseFloat(document.getElementById('placementMul').value),
     dmgMul: parseFloat(document.getElementById('dmgMul').value),
@@ -113,7 +111,6 @@
     kingWakeRule: document.getElementById('chkKingWake').checked
   };
 
-  // wire UI
   document.getElementById('placementMul').addEventListener('input', e=>{
     Inspector.placementMul = parseFloat(e.target.value);
     document.getElementById('pmVal').innerText = Inspector.placementMul.toFixed(2);
@@ -134,14 +131,9 @@
     Inspector.kingWakeRule = e.target.checked;
   });
 
-  // --------- Arena / lanes setup ----------
-  const ARENA_W = 220;
-  const ARENA_H = 340;
-  const RIVER_H = 36;
-  const BRIDGE_W = 44;
-
-  const arenaGroup = new THREE.Group();
-  scene.add(arenaGroup);
+  // -------------------- Arena geometry & lane waypoints --------------------
+  const ARENA_W = 220, ARENA_H = 340, RIVER_H = 36, BRIDGE_W = 44;
+  const arenaGroup = new THREE.Group(); scene.add(arenaGroup);
 
   function buildArena(){
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_W, ARENA_H), new THREE.MeshLambertMaterial({color:0x184b2f}));
@@ -155,72 +147,83 @@
   }
   buildArena();
 
-  // Lanes: waypoints ordered from player -> enemy
+  // Waypoint structure: [spawnAnchor, preBridge, postBridge, enemyApproach, enemySpawn]
   const Lanes = {
     left: [
-      new THREE.Vector3(-64, 0, ARENA_H/2 - 40),
-      new THREE.Vector3(-64, 0, 40),
-      new THREE.Vector3(-8, 0, 0),
-      new THREE.Vector3(-64, 0, -40),
-      new THREE.Vector3(-64, 0, -ARENA_H/2 + 40)
+      new THREE.Vector3(-64, 0, ARENA_H/2 - 36),    // spawnAnchor (player spawn region)
+      new THREE.Vector3(-64, 0, 40),                // PRE-BRIDGE (your side)  (blue)
+      new THREE.Vector3(-8, 0, 0),                  // POST-BRIDGE (enemy side) (red)
+      new THREE.Vector3(-64, 0, -40),               // enemy approach
+      new THREE.Vector3(-64, 0, -ARENA_H/2 + 36)    // enemy spawn anchor
     ],
     right: [
-      new THREE.Vector3(64, 0, ARENA_H/2 - 40),
+      new THREE.Vector3(64, 0, ARENA_H/2 - 36),
       new THREE.Vector3(64, 0, 40),
       new THREE.Vector3(8, 0, 0),
       new THREE.Vector3(64, 0, -40),
-      new THREE.Vector3(64, 0, -ARENA_H/2 + 40)
+      new THREE.Vector3(64, 0, -ARENA_H/2 + 36)
     ]
   };
 
-  // --------- World pools ----------
+  // debug waypoint markers (visible)
+  const WaypointMarkers = { left: {pre:null, post:null}, right: {pre:null, post:null} };
+  function createWaypointMarkers(){
+    // remove old
+    for(const side of ['left','right']){
+      if(WaypointMarkers[side].pre){ scene.remove(WaypointMarkers[side].pre); WaypointMarkers[side].pre = null; }
+      if(WaypointMarkers[side].post){ scene.remove(WaypointMarkers[side].post); WaypointMarkers[side].post = null; }
+    }
+    // pre-bridge: blue spheres, post-bridge: red spheres
+    const preGeom = new THREE.SphereGeometry(3.4, 12, 12);
+    const preMat = new THREE.MeshLambertMaterial({color:0x2ea0ff, emissive:0x112233});
+    const postGeom = new THREE.SphereGeometry(3.4, 12, 12);
+    const postMat = new THREE.MeshLambertMaterial({color:0xff4c4c, emissive:0x331111});
+    WaypointMarkers.left.pre = new THREE.Mesh(preGeom, preMat); WaypointMarkers.left.pre.position.copy(Lanes.left[1]); WaypointMarkers.left.pre.position.y = 3.5; scene.add(WaypointMarkers.left.pre);
+    WaypointMarkers.left.post = new THREE.Mesh(postGeom, postMat); WaypointMarkers.left.post.position.copy(Lanes.left[2]); WaypointMarkers.left.post.position.y = 3.5; scene.add(WaypointMarkers.left.post);
+    WaypointMarkers.right.pre = new THREE.Mesh(preGeom, preMat); WaypointMarkers.right.pre.position.copy(Lanes.right[1]); WaypointMarkers.right.pre.position.y = 3.5; scene.add(WaypointMarkers.right.pre);
+    WaypointMarkers.right.post = new THREE.Mesh(postGeom, postMat); WaypointMarkers.right.post.position.copy(Lanes.right[2]); WaypointMarkers.right.post.position.y = 3.5; scene.add(WaypointMarkers.right.post);
+  }
+  createWaypointMarkers();
+
+  // -------------------- World / pools --------------------
   const World = { troops: [], towers: [], projectiles: [] };
 
-  // --------- Helpers: healthbar, meshes ----------
+  // -------------------- Helpers: healthbar, simple meshes --------------------
   function createHealthBar(){
     const group = new THREE.Group();
     const back = new THREE.Mesh(new THREE.PlaneGeometry(22,3), new THREE.MeshBasicMaterial({color:0x000000, transparent:true, opacity:0.6}));
     const front = new THREE.Mesh(new THREE.PlaneGeometry(20,2.2), new THREE.MeshBasicMaterial({color:0x33ff88}));
-    front.name = 'hpFront';
-    front.position.z = 0.01;
-    back.add(front);
-    group.add(back);
+    front.name = 'hpFront'; front.position.z = 0.01; back.add(front); group.add(back);
     group.position.y = 36;
     return group;
   }
-
   function towerMesh(kind, team){
     const color = (team === 'player') ? 0x2f7a47 : 0x7a2f2f;
     const geo = new THREE.CylinderGeometry(12, 12, 28, 12);
-    const mat = new THREE.MeshLambertMaterial({color});
-    return new THREE.Mesh(geo, mat);
+    return new THREE.Mesh(geo, new THREE.MeshLambertMaterial({color}));
   }
 
-  // --------- Tower class ----------
+  // -------------------- Tower class --------------------
   function Tower(opts){
     this.team = opts.team;
     this.kind = opts.kind;
     this.pos = opts.pos.clone();
     this.baseHP = (opts.kind === 'king') ? 1600 : 1000;
     this.hp = this.baseHP;
-    // TUNED VALUES (reduced damage & ranges)
-    this.baseDamage = (opts.kind === 'king') ? 90 : 45;      // reduced damage
-    this.baseRange = (opts.kind === 'king') ? 140 : 110;     // tightened range so they don't shoot across river
-    this.baseFireRate = 1.0;                                // 1 shot/sec default
+    // TUNED values
+    this.baseDamage = (opts.kind === 'king') ? 90 : 45;
+    this.baseRange = (opts.kind === 'king') ? 140 : 110; // tightened
+    this.baseFireRate = 1.0;
     this.damage = this.baseDamage;
     this.range = this.baseRange;
     this.fireRate = this.baseFireRate;
     this.cooldown = 0;
     this.active = true;
-    this.object3d = new THREE.Group();
     this.mesh = towerMesh(this.kind, this.team);
-    this.mesh.position.copy(this.pos);
-    this.mesh.position.y = 14;
-    this.object3d.add(this.mesh);
+    this.mesh.position.set(this.pos.x, 14, this.pos.z);
     this.hpBar = createHealthBar();
     this.hpBar.position.set(this.pos.x, 36, this.pos.z);
-    this.object3d.add(this.hpBar);
-    scene.add(this.object3d);
+    scene.add(this.mesh); scene.add(this.hpBar);
     this.id = this.team + '-' + this.kind;
   }
 
@@ -230,43 +233,41 @@
     const front = this.hpBar.children[0].getObjectByName('hpFront');
     if(front){
       const pct = clamp(this.hp / this.baseHP, 0, 1);
-      front.scale.x = pct;
-      front.position.x = - (20 * (1 - pct)) / 2;
+      front.scale.x = pct; front.position.x = - (20 * (1 - pct)) / 2;
     }
-    if(this.hp <= 0){ this.mesh.material.color.setHex(0x333333); this.active=false; }
+    if(this.hp <= 0){ this.mesh.material.color.setHex(0x333333); this.active = false; }
   };
 
+  // Only target troops that have crossed the bridge (troop.crossedBridge = true) AND that are on the same side (z sign).
   Tower.prototype.canTarget = function(candidate){
     if(!candidate) return false;
     if(candidate.hp <= 0) return false;
-    // require candidate to be on same side of river as this tower (z sign) OR already crossed river close to tower
-    const tz = this.pos.z;
-    const cz = (candidate.mesh) ? candidate.mesh.position.z : candidate.pos.z;
-    // same side check
-    if(tz === 0) return true; // safety
-    if(Math.sign(tz) === Math.sign(cz)) return true;
-    // allow some leeway: if candidate has crossed the bridge area into tower half, allow
-    // compute bridge crossing: candidate considered across if abs(cz) < 12? We'll use sign check only to be strict
-    return false;
+    // if candidate is troop object
+    if(candidate.crossedBridge !== undefined){
+      if(!candidate.crossedBridge) return false; // hasn't crossed yet -> cannot be targeted
+      // now require candidate to be on same side of river as tower (sign check)
+      if(Math.sign(this.pos.z) !== Math.sign(candidate.mesh.position.z)) return false;
+      return true;
+    }
+    // if candidate is a tower (rare) allow (used for targeting towers)
+    return true;
   };
 
   Tower.prototype.tryFire = function(dt){
     if(this.hp <= 0) return;
     if(this.cooldown > 0){ this.cooldown -= dt; return; }
     if(this.kind === 'king' && Inspector.kingWakeRule){
-      // King sleeps until at least one princess on its team is destroyed
       const teamPrincesses = World.towers.filter(t=>t.team===this.team && t.kind==='princess');
       const anyAlive = teamPrincesses.some(p=>p.hp > 0);
-      if(anyAlive) return; // king remains passive
+      if(anyAlive) return; // king sleeping
     }
-    // find nearest hostile troop in range AND on same side
     let best=null, bd=Infinity;
     for(const u of World.troops){
       if(u.team === this.team) continue;
       if(u.hp <= 0) continue;
-      if(!this.canTarget(u)) continue; // ensure only target on same side
+      if(!this.canTarget(u)) continue;
       const d = vdist(this.pos, u.mesh.position);
-      if(d <= this.range && d < bd){ bd=d; best=u; }
+      if(d <= this.range && d < bd){ bd = d; best = u; }
     }
     if(best){
       spawnProjectile(this.pos.clone(), best, this.damage, this.team);
@@ -274,13 +275,12 @@
     }
   };
 
-  // --------- Projectile ----------
+  // -------------------- Projectiles --------------------
   function spawnProjectile(fromVec, targetUnit, power, team){
     const geo = new THREE.SphereGeometry(1.8,8,8);
     const mat = new THREE.MeshBasicMaterial({color:0xffdddd});
     const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.copy(fromVec);
-    mesh.position.y = 10;
+    mesh.position.copy(fromVec); mesh.position.y = 10;
     scene.add(mesh);
     const proj = { mesh, target: targetUnit, power, speed: 220, dead:false, team };
     World.projectiles.push(proj);
@@ -290,25 +290,23 @@
     for(const p of World.projectiles){
       if(p.dead) continue;
       if(!p.target || p.target.hp <= 0){ p.dead = true; scene.remove(p.mesh); continue; }
-      const tpos = p.target.mesh.position;
+      const tpos = p.target.mesh ? p.target.mesh.position : p.target.pos;
       const dx = tpos.x - p.mesh.position.x, dz = tpos.z - p.mesh.position.z;
       const d = Math.sqrt(dx*dx + dz*dz);
       if(d < 3){
         p.target.hp = Math.max(0, p.target.hp - p.power);
-        p.dead = true;
-        scene.remove(p.mesh);
-        log('Projectile hit', p.target.team + '-' + p.target.name, 'hp->', Math.round(p.target.hp));
+        p.dead = true; scene.remove(p.mesh);
+        log('Projectile hit', (p.target.team? p.target.team + '-' + p.target.name : p.target.id), 'hp->', Math.round(p.target.hp));
       } else {
         const nx = dx / d, nz = dz / d;
         const move = p.speed * dt;
-        p.mesh.position.x += nx * move;
-        p.mesh.position.z += nz * move;
+        p.mesh.position.x += nx * move; p.mesh.position.z += nz * move;
       }
     }
     for(let i = World.projectiles.length -1; i>=0; --i) if(World.projectiles[i].dead) World.projectiles.splice(i,1);
   }
 
-  // --------- Troop ----------
+  // -------------------- Troop --------------------
   function Troop(opts){
     this.team = opts.team;
     this.name = opts.template.name;
@@ -319,74 +317,52 @@
     this.range = opts.template.range;
     this.projectile = !!opts.template.projectile;
     this.size = opts.template.size || 6;
-    this.path = opts.path.map(p => p.clone());
-    // IMPORTANT FIX: choose starting waypoint index to avoid backwards movement
-    // if spawned on player side, start at 1 (skip spawn anchor) so forward movement is immediate
-    // if spawned on enemy side (AI), start near path.length-2 so it moves forward toward player
-    this.waypointIndex = (opts.team === 'player') ? Math.max(1, opts.startIndex || 1) : Math.max(1, (opts.path.length - 2));
+    this.path = opts.path.map(p=>p.clone());
+    // IMPORTANT: choose starting waypoint index to avoid backwards motion
+    // Start at 1 (pre-bridge) so troop moves forward immediately
+    this.waypointIndex = (this.team === 'player') ? 1 : (this.path.length - 2);
+    this.crossedBridge = false; // will flip true once waypointIndex >= postBridgeIndex (which is 2)
     this.mesh = new THREE.Mesh(new THREE.BoxGeometry(this.size, this.size, this.size), new THREE.MeshLambertMaterial({color: (this.team==='player'?0xffe0b0:0xffb0b0)}));
-    this.mesh.position.copy(opts.pos);
-    this.mesh.position.y = this.size/2;
-    const hp = createHealthBar();
-    this.mesh.add(hp);
-    hp.position.set(0, this.size + 6, 0);
-    this.hpBar = hp;
-    this.target = null;
-    this.state = 'moving';
-    this.attackCooldown = 0;
+    // spawn position set by caller
+    this.mesh.position.copy(opts.pos); this.mesh.position.y = this.size/2;
+    const hp = createHealthBar(); this.mesh.add(hp); hp.position.set(0, this.size + 6, 0); this.hpBar = hp;
+    this.target = null; this.state = 'moving'; this.attackCooldown = 0;
     this.id = 'troop-' + Math.random().toString(36).substr(2,6);
-    scene.add(this.mesh);
-    World.troops.push(this);
+    scene.add(this.mesh); World.troops.push(this);
   }
 
   Troop.prototype.updateVisual = function(){
     const front = this.mesh.children[0].getObjectByName('hpFront');
-    if(front){
-      const pct = clamp(this.hp / this.maxHp, 0, 1);
-      front.scale.x = pct; front.position.x = - (20 * (1 - pct)) / 2;
-    }
+    if(front){ const pct = clamp(this.hp / this.maxHp, 0, 1); front.scale.x = pct; front.position.x = - (20 * (1 - pct)) / 2; }
   };
 
   Troop.prototype.findTarget = function(){
-    // prefer nearest enemy troop in range; otherwise nearest tower
     let best=null, bd=Infinity;
-    for(const u of World.troops){
-      if(u.team === this.team) continue;
-      if(u.hp <= 0) continue;
-      const d = vdist(this.mesh.position, u.mesh.position);
-      if(d < bd){ bd=d; best=u; }
-    }
+    for(const u of World.troops){ if(u.team === this.team || u.hp<=0) continue; const d = vdist(this.mesh.position, u.mesh.position); if(d < bd){ bd = d; best = u; } }
     if(best) return best;
-    for(const t of World.towers){
-      if(t.team === this.team) continue;
-      if(t.hp <= 0) continue;
-      const d2 = vdist(this.mesh.position, t.pos);
-      if(d2 < bd){ bd = d2; best = t; }
-    }
+    for(const t of World.towers){ if(t.team === this.team || t.hp<=0) continue; const d2 = vdist(this.mesh.position, t.pos); if(d2 < bd){ bd = d2; best = t; } }
     return best;
   };
 
   Troop.prototype.update = function(dt){
     if(this.hp <= 0) return;
     if(this.target && this.target.hp <= 0){ this.target = null; this.state = 'moving'; }
-    if(!this.target){ this.target = this.findTarget(); }
+    if(!this.target) this.target = this.findTarget();
+
+    // update crossedBridge flag when we pass the post-bridge waypoint index (index 2)
+    if(this.waypointIndex >= 2) this.crossedBridge = true;
+
     if(this.target){
       const targetPos = (this.target.mesh) ? this.target.mesh.position : this.target.pos;
       const d = vdist(this.mesh.position, targetPos);
-      // radius check: if within attack range (plus buffer) stop moving and attack
       if(d <= this.range + 6){
-        this.state = 'attacking';
-        this.attack(dt);
-        return;
-      } else {
-        this.state = 'moving';
-      }
+        this.state = 'attacking'; this.attack(dt); return;
+      } else { this.state = 'moving'; }
     }
+
     if(this.state === 'moving'){
       if(this.waypointIndex >= this.path.length){
-        if(this.target){
-          this.moveToward((this.target.mesh ? this.target.mesh.position : this.target.pos), dt);
-        }
+        if(this.target) this.moveToward((this.target.mesh?this.target.mesh.position:this.target.pos), dt);
       } else {
         const wp = this.path[this.waypointIndex];
         const dwp = vdist(this.mesh.position, wp);
@@ -404,9 +380,7 @@
     const nx = dx / d, nz = dz / d;
     const move = this.speed * dt;
     const actual = Math.min(move, d);
-    this.mesh.position.x += nx * actual;
-    this.mesh.position.z += nz * actual;
-    this.mesh.position.y = this.size/2;
+    this.mesh.position.x += nx * actual; this.mesh.position.z += nz * actual; this.mesh.position.y = this.size/2;
   };
 
   Troop.prototype.attack = function(dt){
@@ -414,19 +388,14 @@
     if(this.projectile){
       spawnProjectile(this.mesh.position.clone(), this.target, this.dmg, this.team);
     } else {
-      // melee apply damage instantly per attack
       this.target.hp = Math.max(0, this.target.hp - this.dmg);
     }
-    this.attackCooldown = 1.0; // simple fixed attack rate
+    this.attackCooldown = 1.0;
   };
 
-  // --------- Game & AI ----------
+  // -------------------- Game & AI --------------------
   const Game = {
-    elixir: 4,
-    elixirMax: 10,
-    elixirRate: 1,
-    last: now(),
-    paused: false,
+    elixir: 4, elixirMax: 10, elixirRate: 1, last: now(), paused:false,
     placementZone: { xMin:-80, xMax:80, zMin: ARENA_H/2 - 140, zMax: ARENA_H/2 - 30 },
     deckTemplates: [
       {name:'Knight', hp:420, dmg:48, speed:45, range:8, projectile:false, cost:3, size:8},
@@ -435,18 +404,11 @@
       {name:'Hog', hp:320, dmg:60, speed:110, range:10, projectile:false, cost:4, size:8}
     ],
     selectedCard: null,
-    ai: {
-      elixir: 4,
-      spawnIntervalMin: 1.2,
-      spawnIntervalMax: 3.0,
-      lastSpawnAttempt: 0
-    }
+    ai: { elixir: 4, spawnIntervalMin: 1.2, spawnIntervalMax: 3.0, lastSpawnAttempt: 0 }
   };
 
   function spawnAllTowers(){
-    for(const t of World.towers){
-      try{ scene.remove(t.mesh); scene.remove(t.hpBar); }catch(e){}
-    }
+    for(const t of World.towers){ try{ scene.remove(t.mesh); scene.remove(t.hpBar); }catch(e){} }
     World.towers.length = 0;
     const pLeft = new Tower({team:'player', kind:'princess', pos:new THREE.Vector3(-64,0, ARENA_H/2 - 80)});
     const pRight = new Tower({team:'player', kind:'princess', pos:new THREE.Vector3(64,0, ARENA_H/2 - 80)});
@@ -464,6 +426,7 @@
     const w = baseW * m, h = baseH * m;
     this.placementZone.xMin = -w/2; this.placementZone.xMax = w/2;
     this.placementZone.zMin = ARENA_H/2 - h - 10; this.placementZone.zMax = ARENA_H/2 - 30;
+    // debug: show zone as markers (not rendered here—waypoints suffice)
   };
 
   Game.applyTowerMultipliers = function(){
@@ -471,13 +434,11 @@
       t.damage = Math.round(t.baseDamage * Inspector.dmgMul);
       t.range = Math.round(t.baseRange * Inspector.rangeMul);
       t.fireRate = Math.max(0.05, t.baseFireRate * Inspector.rateMul);
-      // do not instant heal on multiplier change; keep current hp as-is
       t.updateVisual();
     }
     log('Applied tower multipliers');
   };
 
-  // spawn troop by player card
   function spawnTroopFromCard(cardTemplate, worldPos){
     if(worldPos.z < Game.placementZone.zMin || worldPos.z > Game.placementZone.zMax ||
        worldPos.x < Game.placementZone.xMin || worldPos.x > Game.placementZone.xMax){
@@ -485,51 +446,52 @@
     }
     if(Game.elixir < cardTemplate.cost){ log('Not enough elixir'); return; }
     Game.elixir -= cardTemplate.cost; updateElixirUI();
-    // lane pick
-    const lane = (worldPos.x < 0) ? Lanes.left : Lanes.right;
-    // set spawn pos to nearest lane spawn waypoint (index 0)
-    const spawnPos = lane[0].clone();
-    // offset spawn slightly to the clicked position X to allow horizontal placement
-    spawnPos.x = worldPos.x;
+    // choose lane nearest by x
+    const laneName = (worldPos.x < 0) ? 'left' : 'right';
+    const lane = Lanes[laneName];
+    // spawnPos = clicked location (free placement) but snap z to spawn anchor z so they start at correct lane depth
+    const spawnPos = worldPos.clone();
+    spawnPos.y = 0;
+    // For better pathing start them slightly behind the pre-bridge (if user placed too close to bridge)
+    // But keep spawn exactly at clicked X so horizontal placement is preserved
+    spawnPos.z = clamp(spawnPos.z, Game.placementZone.zMin, Game.placementZone.zMax);
+    // Create troop: set path = lane, pos = spawnPos
     const troop = new Troop({team:'player', template:cardTemplate, pos: spawnPos, path: lane});
     troop.name = cardTemplate.name;
     troop.maxHp = cardTemplate.hp; troop.hp = cardTemplate.hp; troop.dmg = cardTemplate.dmg;
     troop.speed = cardTemplate.speed; troop.range = cardTemplate.range; troop.projectile = !!cardTemplate.projectile;
-    log('Player spawned', troop.name);
+    log('Player spawned', troop.name, 'at', Math.round(spawnPos.x), Math.round(spawnPos.z));
   }
 
-  // AI: simple elixir gain + random spawns
+  // AI: very simple elixir & spawn
   function aiTick(dt){
     Game.ai.elixir = clamp(Game.ai.elixir + Game.elixirRate * dt, 0, Game.elixirMax);
     Game.ai.lastSpawnAttempt += dt;
     const next = randRange(Game.ai.spawnIntervalMin, Game.ai.spawnIntervalMax);
     if(Game.ai.lastSpawnAttempt >= next){
       Game.ai.lastSpawnAttempt = 0;
-      // decide to spawn or not: pick random card template
       const candidate = Game.deckTemplates[Math.floor(Math.random() * Game.deckTemplates.length)];
       if(Game.ai.elixir >= candidate.cost){
-        // spawn at enemy spawn position for chosen lane
-        const laneChoice = (Math.random() < 0.5) ? Lanes.left : Lanes.right;
-        const spawnPos = laneChoice[laneChoice.length - 1].clone();
-        spawnPos.x += (Math.random() - 0.5) * 20; // jitter
-        aiSpawnTroop(candidate, spawnPos, laneChoice);
+        const laneChoiceName = (Math.random() < 0.5) ? 'left' : 'right';
+        const lane = Lanes[laneChoiceName];
+        const spawnPos = lane[lane.length - 1].clone(); // enemy spawn anchor
+        spawnPos.x += (Math.random() - 0.5) * 20;
+        aiSpawnTroop(candidate, spawnPos, lane);
         Game.ai.elixir -= candidate.cost;
-        log('AI spawned', candidate.name);
+        log('AI spawned', candidate.name, 'on', laneChoiceName);
       }
     }
   }
 
-  function aiSpawnTroop(cardTemplate, worldPos, lane){
-    const spawnPos = lane[lane.length - 1].clone();
-    // offset a bit
-    spawnPos.x = worldPos.x;
-    const troop = new Troop({team:'enemy', template:cardTemplate, pos: spawnPos, path: lane});
+  function aiSpawnTroop(cardTemplate, worldPos, path){
+    const spawnPos = worldPos.clone(); spawnPos.y = 0;
+    const troop = new Troop({team:'enemy', template:cardTemplate, pos: spawnPos, path: path});
     troop.name = cardTemplate.name;
     troop.maxHp = cardTemplate.hp; troop.hp = cardTemplate.hp; troop.dmg = cardTemplate.dmg;
     troop.speed = cardTemplate.speed; troop.range = cardTemplate.range; troop.projectile = !!cardTemplate.projectile;
   }
 
-  // --------- Input: world raycast ----------
+  // -------------------- Input: screen -> world --------------------
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
   function screenToWorld(x,y){
@@ -538,22 +500,19 @@
     mouse.y = - ( (y - rect.top) / rect.height ) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
     const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
-    const p = new THREE.Vector3();
-    raycaster.ray.intersectPlane(plane, p);
+    const p = new THREE.Vector3(); raycaster.ray.intersectPlane(plane, p);
     return p;
   }
 
-  renderer.domElement.addEventListener('pointerdown', (ev)=>{
+  renderer.domElement.addEventListener('pointerdown', ev=>{
     const p = screenToWorld(ev.clientX, ev.clientY);
     if(Game.selectedCard){
       spawnTroopFromCard(Game.selectedCard, p);
-      Game.selectedCard = null;
-      highlightSelected(null);
-      return;
+      Game.selectedCard = null; highlightSelected(null);
     }
   });
 
-  // --------- Deck UI & elixir UI ----------
+  // -------------------- Deck UI & Elixir UI --------------------
   const deckEl = document.getElementById('deck');
   function buildDeckUI(){
     deckEl.innerHTML = '';
@@ -573,32 +532,21 @@
     const pct = Math.round((Game.elixir / Game.elixirMax) * 100);
     document.getElementById('elixirFill').style.width = pct + '%';
     document.getElementById('elixirText').innerText = 'Elixir: ' + Math.floor(Game.elixir) + ' / ' + Game.elixirMax;
-    // disable/enable deck children
     Array.from(deckEl.children).forEach((c,i)=>{
       const tpl = Game.deckTemplates[i];
       if(Game.elixir < tpl.cost) c.classList.add('disabled'); else c.classList.remove('disabled');
     });
   }
 
-  // --------- Utility small functions ----------
-  function randRange(a,b){ return a + Math.random()*(b-a); }
-
-  // --------- Clean up helpers ----------
+  // -------------------- Cleanup helper --------------------
   function cleanupDead(){
     for(let i = World.troops.length - 1; i >= 0; --i){
-      if(World.troops[i].hp <= 0){
-        scene.remove(World.troops[i].mesh);
-        World.troops.splice(i,1);
-      }
+      if(World.troops[i].hp <= 0){ scene.remove(World.troops[i].mesh); World.troops.splice(i,1); }
     }
-    for(let i = World.towers.length - 1; i >= 0; --i){
-      if(World.towers[i].hp <= 0){
-        // keep tower removed visually but we already set color in updateVisual
-      }
-    }
+    for(let i = World.projectiles.length -1; i>=0; --i){ if(World.projectiles[i].dead) World.projectiles.splice(i,1); }
   }
 
-  // --------- Main loop ----------
+  // -------------------- Main loop --------------------
   let last = now();
   function animate(){
     requestAnimationFrame(animate);
@@ -606,58 +554,41 @@
     const dt = clamp(t - last, 0, 0.06);
     last = t;
     if(!Game.paused){
-      // elixir regen
       Game.elixir = clamp(Game.elixir + Game.elixirRate * dt, 0, Game.elixirMax);
       updateElixirUI();
-      // AI tick
       aiTick(dt);
-
-      // towers fire
       for(const tw of World.towers) tw.tryFire(dt);
-      // update projectiles
       updateProjectiles(dt);
-      // troops update
-      for(const u of World.troops) { u.update(dt); u.updateVisual(); }
-      // cleanup
+      for(const u of World.troops){ u.update(dt); u.updateVisual(); }
       cleanupDead();
-      // check win condition: king hp 0
-      const playerKing = World.towers.find(t => t.team==='player' && t.kind==='king');
-      const enemyKing = World.towers.find(t => t.team==='enemy' && t.kind==='king');
-      if(playerKing && playerKing.hp <= 0){ Game.paused = true; log('Enemy wins!'); }
-      if(enemyKing && enemyKing.hp <= 0){ Game.paused = true; log('Player wins!'); }
+      // check win: kings
+      const pKing = World.towers.find(t=>t.team==='player' && t.kind==='king');
+      const eKing = World.towers.find(t=>t.team==='enemy' && t.kind==='king');
+      if(pKing && pKing.hp <= 0){ Game.paused = true; log('Enemy wins!'); }
+      if(eKing && eKing.hp <= 0){ Game.paused = true; log('Player wins!'); }
     }
     renderer.render(scene, camera);
   }
 
-  // --------- UI buttons ----------
-  document.getElementById('btnPause').addEventListener('click', ()=>{
-    Game.paused = !Game.paused; document.getElementById('btnPause').innerText = Game.paused ? 'Resume' : 'Pause';
-  });
-  document.getElementById('btnStep').addEventListener('click', ()=>{
-    if(Game.paused){ Game.paused = false; last = now(); setTimeout(()=>{ Game.paused = true; }, 30); }
-  });
+  // -------------------- Buttons --------------------
+  document.getElementById('btnPause').addEventListener('click', ()=>{ Game.paused = !Game.paused; document.getElementById('btnPause').innerText = Game.paused ? 'Resume' : 'Pause'; });
+  document.getElementById('btnStep').addEventListener('click', ()=>{ if(Game.paused){ Game.paused = false; last = now(); setTimeout(()=>{ Game.paused = true; }, 30);} });
   document.getElementById('btnReset').addEventListener('click', ()=>{
-    // clear
     for(const t of World.towers){ try{ scene.remove(t.mesh); scene.remove(t.hpBar); }catch(e){} }
     for(const u of World.troops){ try{ scene.remove(u.mesh); }catch(e){} }
     for(const p of World.projectiles){ try{ scene.remove(p.mesh); }catch(e){} }
     World.troops.length = 0; World.towers.length = 0; World.projectiles.length = 0;
     Game.elixir = 4; Game.ai.elixir = 4; updateElixirUI();
-    spawnAllTowers(); buildDeckUI();
-    Game.selectedCard = null; highlightSelected(null);
+    spawnAllTowers(); buildDeckUI(); Game.selectedCard = null; highlightSelected(null); createWaypointMarkers();
     log('World reset');
   });
 
-  // --------- Initialization ----------
-  Game.recomputePlacementZones();
-  spawnAllTowers();
-  buildDeckUI();
-  updateElixirUI();
-  animate();
-  log('MegaFixes 3D v2 initialized — troop/backwards fix, tower tuning & simple AI are active.');
+  // -------------------- Init --------------------
+  Game.recomputePlacementZones(); spawnAllTowers(); buildDeckUI(); updateElixirUI(); animate();
+  log('MegaFixes 3D — waypoints added (visible) — spawn anywhere on player half and troops follow pre->post->tower.');
 
-  // Expose for debugging
-  window.MegaFixes3D = { scene, camera, renderer, World, Game, Inspector, Lanes };
+  // expose for debugging
+  window.MegaFixes3D = { scene, camera, renderer, World, Game, Inspector, Lanes, WaypointMarkers };
 
   </script>
 </body>
