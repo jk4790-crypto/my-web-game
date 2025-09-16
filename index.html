@@ -101,14 +101,7 @@ code{background:#f3f6fb;padding:2px 6px;border-radius:4px}
 
 <script>
 /* Ultimate Beast Integration
-   - vector troop models
-   - cannon building (both sides)
-   - fireball spell (splash & damages towers)
-   - weakened towers & balance
-   - projectiles colored by troop
-   - aggro radius & pull
-   - elixir count
-   - CPU plays cannon & fireball
+   - polished visuals, cannon decay nerf, CPU AI, full gameplay
 */
 
 // ---------- CONFIG ----------
@@ -118,10 +111,10 @@ const CONFIG = {
   crownX: 160, crownR: 32, kingBackOffset: 110,
   elixir: { start: 5, max: 10, regenMs: 2800, doubleAfterMs: 120000, doubleRegenMs: 1400 },
   cpuAttemptMin: 4000, cpuAttemptMax: 5000,
-  deckVisible: 3, deckTotal: 8 // we'll have Cannon + Fireball included
+  deckVisible: 3, deckTotal: 8
 };
 
-// ---------- CATALOG (includes cannon building & fireball spell) ----------
+// ---------- CATALOG (troops, cannon, fireball) ----------
 const CATALOG = [
   { key:'knight', name:'Knight', cost:3, hp:160, dmg:46, speed:48, range:18, size:14, type:'melee', aggro:50, model:'knight' },
   { key:'archer', name:'Archer', cost:3, hp:80, dmg:28, speed:84, range:140, size:10, type:'ranged', projectile:'purple', aggro:80, model:'archer' },
@@ -161,6 +154,7 @@ document.getElementById('pickBot').onclick = ()=> { if(state) state.selectedLane
 // ---------- STATE ----------
 let state = null;
 
+// ---------- INIT ----------
 function initGame(){
   overlay.innerHTML = ''; previewLabel.style.display='none';
   state = {
@@ -170,13 +164,12 @@ function initGame(){
     playerDeck: shuffle(CATALOG.map(c => ({...c, uid: uid()}))),
     cpuDeck: shuffle(CATALOG.map(c => ({...c, uid: uid()}))),
     selectedCardIndex: null, selectedLane: 'top', preview: null,
-    entities: [], projectiles: [], buildings: [], // buildings will include placed cannon/towers representation
+    entities: [], projectiles: [], buildings: [],
     playerTowers: [], cpuTowers: [],
     cpuTimer: 0, cpuNextAttempt: randRange(CONFIG.cpuAttemptMin, CONFIG.cpuAttemptMax),
     crowns: { player:0, cpu:0 }, running: true, timeStarted: now()
   };
 
-  // Create towers (weaker than before for faster matches)
   const left = CONFIG.crownX, right = CONFIG.W - CONFIG.crownX;
   state.playerTowers = [
     makeTower(left, CONFIG.lanes.top, 'player', 'left-top', false),
@@ -189,8 +182,6 @@ function initGame(){
     makeTower(right + CONFIG.kingBackOffset, CONFIG.H/2, 'cpu', 'right-king', true)
   ];
 
-  // push tower objects into buildings for unified targeting (but keep arrays for logic)
-  // buildings array will be used for searching towers + cannons
   state.buildings = [...state.playerTowers, ...state.cpuTowers];
 
   renderHand(); logClear(); log('Match started — good luck!');
@@ -200,9 +191,8 @@ function initGame(){
 }
 
 function makeTower(x,y,owner,name,isKing=false){
-  // weaker towers: lower HP and smaller tower hit (balance)
   const hp = isKing ? 1200 : 700;
-  const dmg = isKing ? 90 : 75; // used via projectiles
+  const dmg = isKing ? 90 : 75;
   return {
     id: uid(), x, y, owner, name, isKing,
     r: CONFIG.crownR,
@@ -220,11 +210,9 @@ function renderHand(){
     div.innerHTML = `<div class="name">${card.name}</div><div class="cost">${card.cost} ⬤</div>`;
     div.onclick = () => {
       if(!state.running) return;
-      // select/deselect
       state.selectedCardIndex = (state.selectedCardIndex === i) ? null : i;
       if(state.selectedCardIndex !== null){
         const c = state.playerDeck[state.selectedCardIndex];
-        // if spell: preview will be click-to-cast; if building: must be placed on left half; if troop: same
         state.preview = { x: CONFIG.W*0.25, y: (state.selectedLane==='top'?CONFIG.lanes.top:CONFIG.lanes.bottom), card: c };
         previewLabel.style.display = 'block';
         previewLabel.textContent = `${c.name} • ${c.cost} ⬤`;
@@ -239,20 +227,16 @@ function logClear(){ logEl.innerHTML=''; }
 function log(txt){ const d=document.createElement('div'); d.textContent=`[${Math.floor(state.timeMs/1000)}s] ${txt}`; logEl.prepend(d); if(logEl.children.length>200) logEl.removeChild(logEl.lastChild); }
 function flashLabel(msg){ previewLabel.style.display='block'; previewLabel.textContent=msg; previewLabel.style.left=(window.innerWidth/2+120)+'px'; previewLabel.style.top='18px'; setTimeout(()=>{ if(state && state.selectedCardIndex!==null) previewLabel.style.display='block'; else previewLabel.style.display='none'; },900); }
 
-// ---------- MOUSE: preview movement & placement ----------
+// ---------- INPUT: preview movement & placement ----------
 canvas.addEventListener('mousemove', (ev) => {
   if(!state || state.selectedCardIndex === null) return;
   const rect = canvas.getBoundingClientRect();
   const mx = (ev.clientX - rect.left) * (canvas.width / rect.width);
   const my = (ev.clientY - rect.top) * (canvas.height / rect.height);
   const card = state.playerDeck[state.selectedCardIndex];
-  // spells can be cast anywhere, but for simplicity require target on enemy half for CPU? Player can cast anywhere (both halves)
-  // keep preview limited to left half for placement and anywhere for spells
   if(card.type === 'spell'){
-    // allow preview anywhere
     state.preview = { x: clamp(mx, 40, canvas.width - 40), y: clamp(my, 40, canvas.height - 40), card };
   } else {
-    // building and troop: must be on player's half (left)
     if(mx > canvas.width/2){ state.preview = null; previewLabel.style.display='none'; return; }
     const laneY = (Math.abs(my - CONFIG.lanes.top) < Math.abs(my - CONFIG.lanes.bottom)) ? CONFIG.lanes.top : CONFIG.lanes.bottom;
     state.preview = { x: clamp(mx, 60, canvas.width/2 - 60), y: laneY, card };
@@ -263,32 +247,25 @@ canvas.addEventListener('mousemove', (ev) => {
   previewLabel.textContent = `${card.name} • ${card.cost} ⬤`;
 });
 
-// click to confirm (spawn troop/building/cast spell)
 canvas.addEventListener('click', (ev) => {
   if(!state || !state.preview) return;
   const card = state.preview.card;
   if(state.elixir < card.cost){ log('Not enough elixir for ' + card.name); return; }
 
-  // Spell (fireball)
   if(card.type === 'spell'){
-    // spawn fireball projectile from player's side toward clicked position (visual)
     const targetX = state.preview.x, targetY = state.preview.y;
-    // spawn a "spell projectile" from top-left-ish for player owner
     spawnSpellProjectile(120, CONFIG.H/2, { x: targetX, y: targetY }, card.dmg, card.splash, 'orange', 'player');
     state.elixir -= card.cost;
-    // cycle card
     const used = state.playerDeck.splice(state.selectedCardIndex,1)[0];
     state.playerDeck.push({...used, uid: uid()});
     state.selectedCardIndex = null; state.preview = null; previewLabel.style.display='none';
     renderHand(); updateElixirUI(); return;
   }
 
-  // Building (cannon)
   if(card.type === 'building'){
-    // spawn building on player's half only
     const spawnX = state.preview.x;
     const spawnY = state.preview.y;
-    const b = spawnBuilding(card, spawnX, spawnY, 'player', state.preview.y === CONFIG.lanes.top ? 'top' : 'bottom');
+    spawnBuilding(card, spawnX, spawnY, 'player', state.preview.y === CONFIG.lanes.top ? 'top' : 'bottom');
     state.elixir -= card.cost;
     const used = state.playerDeck.splice(state.selectedCardIndex,1)[0];
     state.playerDeck.push({...used, uid: uid()});
@@ -296,7 +273,6 @@ canvas.addEventListener('click', (ev) => {
     renderHand(); updateElixirUI(); return;
   }
 
-  // Troop spawn
   const spawnX = state.preview.x; const spawnY = state.preview.y;
   spawnUnit(card, spawnX, spawnY, 'player', spawnY === CONFIG.lanes.top ? 'top' : 'bottom');
   state.elixir -= card.cost;
@@ -306,7 +282,7 @@ canvas.addEventListener('click', (ev) => {
   renderHand(); updateElixirUI();
 });
 
-// ---------- spawn building (Cannon) ----------
+// ---------- SPAWN HELPERS ----------
 function spawnBuilding(card, x, y, owner, lane){
   const bx = (owner === 'player') ? clamp(x, 60, canvas.width/2 - 60) : clamp(x, canvas.width/2 + 60, canvas.width - 60);
   const b = {
@@ -319,7 +295,6 @@ function spawnBuilding(card, x, y, owner, lane){
   return b;
 }
 
-// ---------- spawn unit ----------
 function spawnUnit(card, x, y, owner, lane){
   const nx = (owner === 'player') ? clamp(x, 60, canvas.width/2 - 60) : clamp(x, canvas.width/2 + 60, canvas.width - 60);
   const u = {
@@ -334,7 +309,6 @@ function spawnUnit(card, x, y, owner, lane){
   return u;
 }
 
-// ---------- spawn projectile (unit/tower) ----------
 function spawnProjectile(fromX, fromY, targetObj, dmg, color, owner, kind='bullet', splash=0){
   const p = {
     id: uid(), x: fromX, y: fromY, targetId: targetObj.id, targetType: targetObj.type || (targetObj.owner ? 'unit' : 'building'),
@@ -344,7 +318,6 @@ function spawnProjectile(fromX, fromY, targetObj, dmg, color, owner, kind='bulle
   return p;
 }
 
-// ---------- spawn spell projectile (fireball) ----------
 function spawnSpellProjectile(fromX, fromY, dest, dmg, splash, color, owner){
   const p = {
     id: uid(), x: fromX, y: fromY, destX: dest.x, destY: dest.y,
@@ -354,57 +327,48 @@ function spawnSpellProjectile(fromX, fromY, dest, dmg, splash, color, owner){
   return p;
 }
 
-// ---------- CPU behavior (plays troops/buildings/spells) ----------
+// ---------- CPU BEHAVIOR ----------
 function cpuBehaviorTick(dt){
   state.cpuTimer += dt;
   if(state.cpuTimer < state.cpuNextAttempt) return;
   state.cpuTimer = 0;
   state.cpuNextAttempt = randRange(CONFIG.cpuAttemptMin, CONFIG.cpuAttemptMax);
 
-  // choose among visible cpuDeck[0..visible-1]
   const visible = state.cpuDeck.slice(0, CONFIG.deckVisible);
-  const affordable = visible.filter(c => (c.type === 'spell') ? c.cost <= state.cpuElixir : c.cost <= state.cpuElixir);
+  const affordable = visible.filter(c => c.cost <= state.cpuElixir);
   if(affordable.length === 0) return;
 
-  // random pick but prefer building if player pushing near towers
   let pick = affordable[randRange(0, affordable.length-1)];
-  if(Math.random() < 0.35){ // sometimes prefer building
+  if(Math.random() < 0.35){
     const cand = affordable.find(c => c.type === 'building');
     if(cand) pick = cand;
   }
 
-  // act based on type
   if(pick.type === 'spell'){
-    // CPU's spell target: choose a cluster near player's troops or near their towers
     let tx = canvas.width * 0.35, ty = CONFIG.H/2;
     const playerUnits = state.entities.filter(u => u.owner === 'player');
     if(playerUnits.length){
-      // target average position of some player units to be useful
       const sample = playerUnits.slice(0, Math.min(4, playerUnits.length));
       tx = sample.reduce((s,u)=>s+u.x,0)/sample.length;
       ty = sample.reduce((s,u)=>s+u.y,0)/sample.length;
     } else {
-      // otherwise target near player's crown towers
       tx = clamp(randRange(80, 220), 60, canvas.width/2 - 60);
       ty = Math.random() < 0.5 ? CONFIG.lanes.top : CONFIG.lanes.bottom;
     }
     spawnSpellProjectile(canvas.width - 120, CONFIG.H/2, { x: tx, y: ty }, pick.dmg, pick.splash, 'orangered', 'cpu');
     state.cpuElixir -= pick.cost;
   } else if(pick.type === 'building'){
-    // spawn cannon on CPU half
     const lane = Math.random() < 0.5 ? 'top' : 'bottom';
     const sx = clamp(randRange(Math.floor(canvas.width/2 + 60), canvas.width - 80), canvas.width/2 + 60, canvas.width - 60);
     spawnBuilding(pick, sx, lane === 'top' ? CONFIG.lanes.top : CONFIG.lanes.bottom, 'cpu', lane);
     state.cpuElixir -= pick.cost;
   } else {
-    // troop
     const lane = Math.random() < 0.5 ? 'top' : 'bottom';
     const sx = clamp(randRange(Math.floor(canvas.width/2 + 60), canvas.width - 80), canvas.width/2 + 60, canvas.width - 60);
     spawnUnit(pick, sx, lane === 'top' ? CONFIG.lanes.top : CONFIG.lanes.bottom, 'cpu', lane);
     state.cpuElixir -= pick.cost;
   }
 
-  // cycle the played card to end of cpuDeck (find by uid)
   const idx = state.cpuDeck.findIndex(c => c.uid === pick.uid);
   if(idx !== -1){ const used = state.cpuDeck.splice(idx,1)[0]; state.cpuDeck.push({...used, uid: uid()}); }
 }
@@ -413,43 +377,31 @@ function cpuBehaviorTick(dt){
 function simulate(dt){
   const sdt = dt/1000;
 
-  // PROJECTILES: move fireballs or homing projectiles
+  // projectiles
   for(let i = state.projectiles.length - 1; i >= 0; i--){
     const p = state.projectiles[i];
     if(p.kind === 'spell'){
-      // move toward destX/destY
       const dx = p.destX - p.x, dy = p.destY - p.y; const dist = Math.hypot(dx,dy);
       const travel = p.speed * sdt;
       if(dist <= travel || dist < 4){
-        // explode: apply splash damage to enemy units & buildings in radius
         const targets = state.entities.filter(u => Math.hypot(u.x - p.destX, u.y - p.destY) <= p.splash);
         for(const t of targets) t.hp -= p.dmg;
-        // buildings
         const builds = state.buildings.filter(b => Math.hypot(b.x - p.destX, b.y - p.destY) <= p.splash && b.alive);
         for(const b of builds) b.hp -= p.dmg;
-        // also towers (in state.playerTowers / cpuTowers)
         for(const t of [...state.playerTowers, ...state.cpuTowers]) if(Math.hypot(t.x - p.destX, t.y - p.destY) <= p.splash) t.hp -= p.dmg;
-        // spawn small visual explosion (optional)
         state.projectiles.splice(i,1);
         continue;
       } else {
         p.x += (dx/dist) * travel; p.y += (dy/dist) * travel;
       }
     } else {
-      // homing projectile to target object (unit or building/tower)
       let target = null;
       if(p.targetType === 'unit') target = state.entities.find(e => e.id === p.targetId);
-      else {
-        // building or tower
-        target = state.buildings.find(b => b.id === p.targetId) || state.playerTowers.concat(state.cpuTowers).find(t => t.id === p.targetId);
-      }
-      if(!target){
-        state.projectiles.splice(i,1); continue;
-      }
+      else target = state.buildings.find(b => b.id === p.targetId) || state.playerTowers.concat(state.cpuTowers).find(t => t.id === p.targetId);
+      if(!target){ state.projectiles.splice(i,1); continue; }
       const dx = target.x - p.x, dy = target.y - p.y; const dist = Math.hypot(dx,dy);
       const travel = p.speed * sdt;
       if(dist <= travel || dist < 4){
-        // hit
         if(p.splash && p.splash > 0){
           const enemies = state.entities.filter(e => e.owner !== p.owner && Math.hypot(e.x - target.x, e.y - target.y) <= p.splash);
           for(const e of enemies) e.hp -= p.dmg;
@@ -464,10 +416,9 @@ function simulate(dt){
     }
   }
 
-  // AGGRO detection: units set targets if enemy enters aggroRadius
+  // aggro
   for(const u of state.entities){
     if(u.hp <= 0) continue;
-    // keep existing target if valid
     let keep = false;
     if(u.target){
       const targUnit = state.entities.find(e => e.id === u.target && e.hp > 0);
@@ -477,7 +428,6 @@ function simulate(dt){
     }
     if(u.target) continue;
 
-    // nearest enemy unit
     const enemies = state.entities.filter(e => e.owner !== u.owner && e.hp > 0);
     let nearest = null, nd = 1e9;
     for(const e of enemies){
@@ -486,16 +436,13 @@ function simulate(dt){
     }
     if(nearest && nd <= u.aggroRadius){ u.target = nearest.id; if(nearest.target===null) nearest.target = u.id; continue; }
 
-    // building priority: cannons first in lane, then towers
     const enemyBuilds = state.buildings.filter(b => b.owner !== u.owner && b.alive);
-    // prefer cannons in lane
     const cannons = enemyBuilds.filter(b => b.key==='cannon' && b.lane === u.lane);
     if(cannons.length){
       const cand = cannons.reduce((a,b)=> (Math.hypot(a.x-u.x,a.y-u.y) < Math.hypot(b.x-u.x,b.y-u.y)?a:b));
       const d = Math.hypot(cand.x - u.x, cand.y - u.y);
       if(d <= u.aggroRadius * 1.2){ u.target = cand.id; continue; }
     }
-    // else towers in lane or king
     const enemyTowers = (u.owner==='player') ? state.cpuTowers : state.playerTowers;
     let nearestTower = null, td=1e9;
     for(const t of enemyTowers){
@@ -508,13 +455,12 @@ function simulate(dt){
     if(nearestTower && td <= u.aggroRadius * 1.2){ u.target = nearestTower.id; continue; }
   }
 
-  // MOVEMENT & ATTACK
+  // movement & attack
   for(const u of state.entities){
     if(u.hp <= 0) continue;
     const dir = (u.owner === 'player') ? 1 : -1;
 
     if(u.target){
-      // find target object
       let tUnit = state.entities.find(e => e.id === u.target && e.hp > 0);
       let tBuild = null;
       if(!tUnit){
@@ -540,13 +486,11 @@ function simulate(dt){
             }
           }
         } else {
-          // move toward unit
           const ang = Math.atan2(tUnit.y - u.y, tUnit.x - u.x);
           u.x += Math.cos(ang) * u.speed * (dt/1000) * 0.95;
           u.y += ((u.lane==='top'?CONFIG.lanes.top:CONFIG.lanes.bottom) - u.y) * 0.15;
         }
       } else {
-        // target is building/tower
         const tx = tBuild.x, ty = tBuild.y;
         const d = Math.hypot(tx - u.x, ty - u.y);
         if(d <= u.range + (tBuild.r||tBuild.size||18) + 6){
@@ -565,34 +509,39 @@ function simulate(dt){
         }
       }
     } else {
-      // no target -> move forward
       u.x += dir * u.speed * (dt/1000);
       const laneY = (u.lane === 'top') ? CONFIG.lanes.top : CONFIG.lanes.bottom;
       u.y += (laneY - u.y) * 0.18;
     }
   }
 
-  // TOWER attacks -> use projectiles to apply damage
+  // towers
   const dtSec = dt/1000;
   for(const t of state.playerTowers) towerAttack(t, dtSec);
   for(const t of state.cpuTowers) towerAttack(t, dtSec);
-  // BUILDINGS attack (cannons)
   for(const b of state.buildings.filter(b=>b.key==='cannon' && b.alive)) buildingAttack(b, dtSec);
 
-  // remove dead units & out-of-bounds
+  // CANNON DECAY: 5% max HP per second (nerf)
+  for(const b of state.buildings.filter(b => b.key === 'cannon' && b.alive)){
+    b.decayTimer = (b.decayTimer || 0) + dt;
+    if(b.decayTimer >= 1000){
+      const decayAmount = Math.floor((b.maxHp || 700) * 0.05);
+      b.hp -= decayAmount;
+      b.decayTimer = 0;
+      if(b.hp <= 0){
+        b.alive = false;
+        log(`${b.owner.toUpperCase()} ${b.name} decayed away!`);
+      }
+    }
+  }
+
+  // clean
   state.entities = state.entities.filter(u => u.hp > 0 && u.x > -160 && u.x < canvas.width + 160);
 
-  // check building/tower deaths -> crowns & end match
   for(const b of [...state.buildings]){
     if(b.alive && b.hp <= 0){
       b.alive = false;
       log(`${b.owner.toUpperCase()} ${b.name} destroyed!`);
-      if(b.key === 'cannon'){
-        // remove from state.buildings but keep towers separate
-      } else {}
-      if(b.key === undefined && b.isKing){
-        // tower handled later
-      }
     }
   }
 
@@ -613,7 +562,7 @@ function simulate(dt){
   }
 }
 
-// ---------- tower & building attacks ----------
+// ---------- ATTACK HELPERS ----------
 function towerAttack(t, dtSec){
   if(!t.alive) return;
   t.attackCooldown -= dtSec;
@@ -628,7 +577,6 @@ function towerAttack(t, dtSec){
       }
     }
   } else {
-    // optionally target buildings if no units
     const enemyBuilds = state.buildings.filter(b => b.owner !== t.owner && b.alive);
     if(enemyBuilds.length){
       enemyBuilds.sort((a,b)=>Math.hypot(a.x-t.x,a.y-t.y)-Math.hypot(b.x-t.x,b.y-t.y));
@@ -660,48 +608,40 @@ function buildingAttack(b, dtSec){
   }
 }
 
-// ---------- rendering ----------
+// ---------- RENDER ----------
 function render(){
   ctx.clearRect(0,0,CONFIG.W,CONFIG.H);
-  // background & lanes
   ctx.fillStyle = '#e9f5e9'; ctx.fillRect(0,0,CONFIG.W,CONFIG.H);
   ctx.fillStyle = '#d0f0d6'; ctx.fillRect(0, CONFIG.lanes.top - 84, CONFIG.W, 140);
   ctx.fillRect(0, CONFIG.lanes.bottom - 84, CONFIG.W, 140);
   ctx.fillStyle = 'rgba(90,140,150,0.10)'; ctx.fillRect(CONFIG.W/2 - 16, CONFIG.lanes.top - 96, 32, CONFIG.lanes.bottom - CONFIG.lanes.top + 192);
 
-  // towers: draw king towers first (behind), then crown towers
   state.playerTowers.filter(t=>t.isKing).forEach(drawTower);
   state.cpuTowers.filter(t=>t.isKing).forEach(drawTower);
   state.playerTowers.filter(t=>!t.isKing).forEach(drawTower);
   state.cpuTowers.filter(t=>!t.isKing).forEach(drawTower);
 
-  // draw buildings (cannons) - building should appear in front of king but maybe behind units? We'll draw them before units so units are in front slightly.
   state.buildings.filter(b => b.alive && b.key==='cannon').forEach(drawBuilding);
 
-  // draw projectiles (above buildings & units)
   for(const p of state.projectiles) drawProjectile(p);
 
-  // draw units (with vector models)
   for(const u of state.entities) drawUnit(u);
 
-  // draw preview on top
   if(state.preview){
     const p = state.preview;
     ctx.beginPath(); ctx.fillStyle = 'rgba(255,210,80,0.12)'; ctx.strokeStyle = 'rgba(255,210,80,0.98)'; ctx.lineWidth = 2;
     ctx.arc(p.x, p.y, p.card.range || 20, 0, Math.PI*2); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.fillStyle = 'rgba(255,210,80,0.98)'; ctx.arc(p.x,p.y,8,0,Math.PI*2); ctx.fill();
-    // if spell show splash radius for Fireball
     if(p.card.type === 'spell' && p.card.splash) {
       ctx.beginPath(); ctx.strokeStyle = 'rgba(255,120,40,0.6)'; ctx.setLineDash([6,6]); ctx.arc(p.x,p.y,p.card.splash,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
     }
     highlightThreatsAt(p.x,p.y,p.card.range || 20);
   }
 
-  // elixir HUD (text)
   ctx.font = '12px sans-serif'; ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillText(`Elixir: ${Math.floor(state.elixir)} / ${CONFIG.elixir.max}`, 12, 18);
 }
 
-// ---------- draw helpers: towers, buildings, units, projectiles ----------
+// ---------- DRAW HELPERS ----------
 function drawTower(t){
   ctx.save(); ctx.translate(t.x,t.y);
   const base = (t.owner === 'player') ? '#dbeeff' : '#ffeaea';
@@ -709,7 +649,6 @@ function drawTower(t){
   ctx.beginPath(); ctx.fillStyle = base; ctx.arc(0,0,t.r,0,Math.PI*2); ctx.fill();
   ctx.beginPath(); ctx.fillStyle = accent; ctx.arc(0,-6,t.r*0.6,0,Math.PI*2); ctx.fill();
   ctx.fillStyle = '#fff'; ctx.fillRect(-10,-t.r-20,20,10);
-  // hp bar
   const w = 90, h = 8; ctx.fillStyle = '#333'; ctx.fillRect(-w/2, -t.r - 38, w, h);
   ctx.fillStyle = 'var(--hp)'; ctx.fillRect(-w/2, -t.r - 38, w * Math.max(0, t.hp / t.maxHp), h);
   ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.strokeRect(-w/2, -t.r - 38, w, h);
@@ -719,66 +658,70 @@ function drawTower(t){
 
 function drawBuilding(b){
   ctx.save(); ctx.translate(b.x,b.y);
-  // Cannon model: base + barrel
-  ctx.fillStyle = '#7d7d7d';
-  ctx.beginPath(); ctx.roundRect = ctx.roundRect || function(x,y,w,h,r){ this.moveTo(x+r,y); this.arcTo(x+w,y,x+w,y+h,r); this.arcTo(x+w,y+h,x,y+h,r); this.arcTo(x,y+h,x,y,r); this.arcTo(x,y,x+w,y,r); };
-  // base
-  ctx.fillStyle = '#444'; ctx.fillRect(-b.size, -b.size/2, b.size*2, b.size);
-  // barrel
-  ctx.fillStyle = '#222'; ctx.fillRect(-b.size/2, -b.size - 6, b.size, b.size/2);
-  // team tint ring
-  ctx.beginPath(); ctx.strokeStyle = (b.owner==='player') ? 'rgba(47,143,230,0.9)' : 'rgba(226,75,75,0.9)'; ctx.lineWidth = 3; ctx.arc(0,0,b.size+6,0,Math.PI*2); ctx.stroke();
-  // hp bar
-  const w = b.size*3, h=6; ctx.fillStyle='#333'; ctx.fillRect(-w/2, -b.size - 18, w, h); ctx.fillStyle='var(--hp)'; ctx.fillRect(-w/2, -b.size - 18, w * Math.max(0, b.hp / b.maxHp), h);
+  const baseR = b.size || 18;
+  const bg = ctx.createLinearGradient(-baseR, -baseR, baseR, baseR);
+  bg.addColorStop(0, '#555'); bg.addColorStop(1, '#222');
+  ctx.beginPath(); ctx.fillStyle = bg; ctx.arc(0, 0, baseR + 6, 0, Math.PI*2); ctx.fill();
+
+  let barrelAngle = 0;
+  const enemies = state.entities.filter(e => e.owner !== b.owner && Math.abs(e.y - b.y) < 120);
+  if(enemies.length){
+    const target = enemies.reduce((a,c)=> (Math.hypot(a.x-b.x,a.y-b.y) < Math.hypot(c.x-b.x,c.y-b.y)?a:c));
+    barrelAngle = Math.atan2(target.y - b.y, target.x - b.x);
+  } else {
+    barrelAngle = (b.owner === 'player') ? 0 : Math.PI;
+  }
+
+  ctx.save();
+  ctx.rotate(barrelAngle);
+  ctx.fillStyle = '#2b2b2b';
+  ctx.fillRect(baseR*0.1, -8, baseR*1.6, 14);
+  ctx.beginPath(); ctx.fillStyle = '#111'; ctx.arc(baseR*1.9, -1, 6, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  ctx.beginPath(); ctx.lineWidth = 3; ctx.strokeStyle = (b.owner==='player') ? 'rgba(47,143,230,0.9)' : 'rgba(226,75,75,0.9)'; ctx.arc(0, 0, baseR+10, 0, Math.PI*2); ctx.stroke();
+
+  const w = baseR*3, h = 8;
+  ctx.fillStyle = '#222'; ctx.fillRect(-w/2, -baseR - 22, w, h);
+  const hpGrad = ctx.createLinearGradient(-w/2, 0, w/2, 0); hpGrad.addColorStop(0, '#ff8a8a'); hpGrad.addColorStop(1, '#34c759');
+  ctx.fillStyle = hpGrad; ctx.fillRect(-w/2, -baseR - 22, w * Math.max(0, b.hp / b.maxHp), h);
+
   ctx.restore();
 }
 
 function drawUnit(u){
   ctx.save();
-  // slow bob for life
   const t = now();
   const bobSpeed = 0.0015 * (u.speed / 60);
   const bob = Math.sin((t - u.birth) * bobSpeed * 1000) * (0.9 + (u.size/12));
   ctx.translate(u.x, u.y + bob);
 
-  // draw vector model per u.key
-  const teamColor = (u.owner==='player') ? 'var(--player)' : 'var(--cpu)';
-  ctx.fillStyle = teamColor;
-  if(u.key === 'knight'){
-    // shield + sword
-    ctx.beginPath(); ctx.fillStyle = teamColor; ctx.arc(-2,0,u.size,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#d1d1d1'; ctx.fillRect(6, -u.size/2, u.size*0.8, u.size/6); // sword
-    ctx.fillStyle = '#fff'; ctx.font='10px sans-serif'; ctx.textAlign='center'; ctx.fillText('K', 0, 4);
-  } else if(u.key === 'archer'){
-    // small body + bow (bow color purple arrow)
-    ctx.beginPath(); ctx.arc(0,0,u.size,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.strokeStyle = 'purple'; ctx.lineWidth=2; ctx.moveTo(-u.size-4, -6); ctx.quadraticCurveTo(-u.size-8,0,-u.size-4,6); ctx.stroke();
-    ctx.fillStyle='#000'; ctx.fillText('A',0,4);
-  } else if(u.key === 'miniTank'){
-    // boxy tank
-    ctx.fillStyle = teamColor; ctx.fillRect(-u.size, -u.size, u.size*2, u.size*1.4);
-    ctx.fillStyle='#333'; ctx.fillRect(-2, -u.size-8, u.size+6, 6);
-    ctx.fillStyle='#fff'; ctx.fillText('T',0,4);
-  } else if(u.key === 'goblin'){
-    ctx.beginPath(); ctx.ellipse(0,0,u.size*0.9,u.size*0.7,0,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle='#fff'; ctx.fillText('G',0,4);
-  } else if(u.key === 'bomber'){
-    ctx.beginPath(); ctx.fillStyle = '#222'; ctx.arc(0,0,u.size,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle='#ffb84d'; ctx.fillRect(-2, -u.size-8, 4,6); // fuse
-    ctx.fillStyle='#fff'; ctx.fillText('B',0,4);
-  } else if(u.key === 'healer'){
-    ctx.beginPath(); ctx.fillStyle = '#fff'; ctx.arc(0,0,u.size,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.fillStyle = 'limegreen'; ctx.arc(0,0,u.size/2,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle='#000'; ctx.fillText('H',0,4);
-  } else {
-    // default circle
-    ctx.beginPath(); ctx.fillStyle = teamColor; ctx.arc(0,0,u.size,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle='#fff'; ctx.fillText(u.name[0]||'?',0,4);
-  }
+  ctx.beginPath();
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.ellipse(0, u.size + 6, u.size*1.2, u.size*0.6, 0, 0, Math.PI*2);
+  ctx.fill();
 
-  // HP bar
-  const bw = u.size * 2.6; ctx.fillStyle = '#333'; ctx.fillRect(-bw/2, -u.size - 12, bw, 4);
-  ctx.fillStyle = 'var(--hp)'; ctx.fillRect(-bw/2, -u.size - 12, bw * Math.max(0, u.hp / u.maxHp), 4);
+  const r = Math.max(6, u.size);
+  const grad = ctx.createRadialGradient(-r*0.3, -r*0.3, r*0.1, 0, 0, r);
+  if(u.key === 'knight'){ grad.addColorStop(0,'#e9c7a0'); grad.addColorStop(1,'#7d4b2b'); }
+  else if(u.key === 'archer'){ grad.addColorStop(0,'#c7f0d1'); grad.addColorStop(1,'#2a8b3d'); }
+  else if(u.key === 'miniTank'){ grad.addColorStop(0,'#f7e6b2'); grad.addColorStop(1,'#8a6b2f'); }
+  else if(u.key === 'goblin'){ grad.addColorStop(0,'#c7ffd4'); grad.addColorStop(1,'#3aa34a'); }
+  else if(u.key === 'bomber'){ grad.addColorStop(0,'#f4d7b6'); grad.addColorStop(1,'#5b3b2a'); }
+  else if(u.key === 'healer'){ grad.addColorStop(0,'#ffffff'); grad.addColorStop(1,'#c7ffd6'); }
+  else { grad.addColorStop(0,'#ddd'); grad.addColorStop(1,'#888'); }
+
+  ctx.beginPath(); ctx.fillStyle = grad; ctx.arc(0,0,r,0,Math.PI*2); ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.stroke();
+
+  const bw = r * 2.4; ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(-bw/2, -r - 14, bw, 6);
+  ctx.fillStyle = 'var(--hp)'; ctx.fillRect(-bw/2, -r - 14, bw * Math.max(0, u.hp / u.maxHp), 6);
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.strokeRect(-bw/2, -r - 14, bw, 6);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ctx.font = `${Math.max(10, r)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const sym = u.key === 'knight' ? '⚔️' : u.key === 'archer' ? '🏹' : u.key === 'miniTank' ? 'T' : u.key === 'goblin' ? 'G' : u.key === 'bomber' ? '💣' : u.key === 'healer' ? '✚' : u.name ? u.name[0] : '?';
+  ctx.fillText(sym, 0, 0);
 
   ctx.restore();
 }
@@ -787,11 +730,14 @@ function drawProjectile(p){
   ctx.save();
   ctx.beginPath();
   ctx.fillStyle = p.color || (p.owner==='player' ? 'var(--player)' : 'var(--cpu)');
-  ctx.arc(p.x, p.y, Math.max(3, Math.min(8, Math.sqrt(p.dmg)/2)), 0, Math.PI*2); ctx.fill();
+  const size = Math.max(3, Math.min(10, Math.sqrt(p.dmg)/2));
+  ctx.shadowBlur = 12; ctx.shadowColor = ctx.fillStyle;
+  ctx.arc(p.x, p.y, size, 0, Math.PI*2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
   ctx.restore();
 }
 
-// ---------- highlight threats at preview ----------
 function highlightThreatsAt(x,y,range){
   const allTowers = [...state.playerTowers, ...state.cpuTowers];
   for(const t of allTowers){
@@ -804,7 +750,6 @@ function highlightThreatsAt(x,y,range){
       ctx.beginPath(); ctx.setLineDash([4,6]); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(0,0,0,0.06)'; ctx.arc(t.x, t.y, t.range, 0, Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
     }
   }
-  // buildings
   for(const b of state.buildings){
     if(!b.alive) continue;
     const d = Math.hypot(b.x - x, b.y - y);
@@ -813,7 +758,6 @@ function highlightThreatsAt(x,y,range){
       ctx.arc(b.x, b.y, (b.size||18) + 8, 0, Math.PI*2); ctx.stroke();
     }
   }
-  // enemy units
   for(const e of state.entities){
     if(Math.hypot(e.x - x, e.y - y) <= (e.range + 8)){
       ctx.beginPath(); ctx.lineWidth = 2; ctx.strokeStyle = (e.owner === 'player') ? getComputedStyle(document.documentElement).getPropertyValue('--threat-player') : getComputedStyle(document.documentElement).getPropertyValue('--threat-cpu');
@@ -822,7 +766,7 @@ function highlightThreatsAt(x,y,range){
   }
 }
 
-// ---------- end match ----------
+// ---------- END MATCH ----------
 function endMatch(winner, reason){
   state.running = false;
   log(`Match ended: ${winner.toUpperCase()} wins — ${reason}`);
@@ -840,13 +784,13 @@ function endMatch(winner, reason){
   document.getElementById('replayBtn').onclick = ()=> initGame();
 }
 
-// ---------- elixir UI ----------
+// ---------- ELIXIR UI ----------
 function updateElixirUI(){
   elixirFill.style.width = Math.round((state.elixir / CONFIG.elixir.max) * 100) + '%';
   elixirCount.textContent = `${Math.floor(state.elixir)} / ${CONFIG.elixir.max}`;
 }
 
-// ---------- main loop ----------
+// ---------- MAIN LOOP ----------
 function loop(timestamp){
   if(!state) return;
   const dt = timestamp - state.lastFrame; state.lastFrame = timestamp; state.timeMs += dt;
@@ -864,25 +808,21 @@ function loop(timestamp){
     while(state.cpuElixirTick >= interval){ state.cpuElixirTick -= interval; if(state.cpuElixir < CONFIG.elixir.max) state.cpuElixir++; }
     state.cpuElixir = Math.min(CONFIG.elixir.max, state.cpuElixir);
 
-    // CPU attempts
     cpuBehaviorTick(dt);
 
-    // simulate
     simulate(dt);
 
-    // update clock
     const mm = Math.floor(state.timeMs / 60000);
     const ss = Math.floor((state.timeMs % 60000) / 1000);
     clockEl.textContent = `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
   }
 
-  // render
   render();
 
   if(state.running) requestAnimationFrame(loop);
 }
 
-// ---------- Bootstrap ----------
+// ---------- BOOTSTRAP ----------
 function logInitialHand(){ const vis = state.playerDeck.slice(0, CONFIG.deckVisible).map(c=>c.name).join(', '); log('Initial hand: ' + vis); }
 initGame(); logInitialHand(); renderHand(); requestAnimationFrame(loop);
 
