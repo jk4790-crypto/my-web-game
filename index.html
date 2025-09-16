@@ -1,45 +1,47 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Clash Royale — MEGA 3D (Bridges · Pathing · Combat)</title>
-<link rel="preload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js" as="script">
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Clash Royale — MEGA 3D Full (Textures Ready)</title>
 <style>
-  /* --- UI Layout --- */
-  html,body{height:100%;margin:0;background:#071019;color:#e6eef6;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial}
+  html,body{height:100%;margin:0;background:#071019;color:#e6eef6;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial}
   #canvasHolder{position:absolute;left:0;top:0;right:420px;bottom:0;overflow:hidden}
-  #ui{position:absolute;right:12px;top:12px;width:392px;background:linear-gradient(180deg,rgba(6,12,16,0.96),rgba(3,6,8,0.9));padding:14px;border-radius:10px;box-shadow:0 20px 40px rgba(0,0,0,0.6);z-index:20}
+  #ui{position:absolute;right:12px;top:12px;width:396px;background:linear-gradient(180deg,rgba(6,12,16,0.96),rgba(3,6,8,0.9));padding:14px;border-radius:12px;box-shadow:0 20px 40px rgba(0,0,0,0.6);z-index:40}
   .btn{padding:8px 10px;border-radius:8px;background:#0b2b2a;border:1px solid rgba(255,255,255,0.03);color:#dff7ff;cursor:pointer;margin-right:8px}
   .muted{color:#9fb3bf;font-size:12px}
   .deck{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-  .card{width:82px;height:106px;background:#e8eedc;color:#082;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;cursor:pointer}
+  .card{width:86px;height:106px;background:#e8eedc;color:#082;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;cursor:pointer}
   .card.disabled{opacity:0.45;pointer-events:none}
   #elixirBar{height:18px;background:#042;border-radius:9px;margin-top:8px;overflow:hidden}
   #elixirFill{height:100%;width:0%;background:linear-gradient(180deg,#ffe26b,#ffc83a)}
-  #log{margin-top:10px;height:180px;overflow:auto;background:#021016;padding:8px;border-radius:6px;font-family:monospace;font-size:12px}
+  #log{margin-top:10px;height:190px;overflow:auto;background:#021016;padding:8px;border-radius:6px;font-family:monospace;font-size:12px}
   .small{font-size:12px;color:#9fb3bf}
   footer{position:absolute;right:12px;bottom:12px;color:#789}
   label.switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
   input[type=checkbox]{width:16px;height:16px}
-  /* responsive */
-  @media (max-width:1200px){ #canvasHolder{right:320px} #ui{width:300px} .card{width:70px;height:86px} }
+  .row{display:flex;gap:8px;align-items:center}
+  .note{font-size:12px;color:#9fb3bf;margin-top:8px}
+  @media (max-width:1200px){ #canvasHolder{right:320px} #ui{width:320px} .card{width:72px;height:86px} }
 </style>
 </head>
 <body>
   <div id="canvasHolder"></div>
+
   <div id="ui">
     <div style="display:flex;justify-content:space-between;align-items:center">
-      <strong>CLASH — MEGA 3D</strong>
-      <div class="muted">Bridges aligned · Full combat</div>
+      <strong>CLASH — MEGA 3D (Full)</strong>
+      <div class="muted">Textures ready</div>
     </div>
 
-    <div style="margin-top:10px;display:flex;align-items:center">
+    <div style="margin-top:10px" class="row">
       <button id="btnPause" class="btn">Pause</button>
       <button id="btnStep" class="btn">Step</button>
       <button id="btnReset" class="btn">Reset</button>
-      <label class="switch" style="margin-left:auto"><input id="debugToggle" type="checkbox"><span class="small muted">Debug</span></label>
+      <label class="switch" style="margin-left:auto"><input id="debugToggle" type="checkbox" /> <span class="small muted">Debug</span></label>
     </div>
+
+    <div class="note">Drop your tower textures to <code>textures/tower_diffuse.png</code> (diffuse) and <code>textures/tower_normal.png</code> (normal). The scene will use them automatically if present.</div>
 
     <label class="muted" style="margin-top:10px">Deck / Elixir</label>
     <div id="elixirBar"><div id="elixirFill"></div></div>
@@ -51,45 +53,53 @@
     <div id="log"></div>
   </div>
 
-  <footer>Drop into GitHub as <code>index.html</code></footer>
+  <footer>Save as <code>index.html</code> — works with file:// or a static server</footer>
 
-  <!-- THREE -->
+  <!-- Three.js and OrbitControls -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
 
   <script>
-  /**************************************************************************
-   *  Mega 3D Clash — Single-file
-   *  - Full Three.js visuals (shadows, fog, orbit)
-   *  - Bridge-aligned waypoints (post-bridge sits on bridge entrance)
-   *  - Troop pathing through waypoints
-   *  - Troop vs troop melee, Troop -> tower attacks
-   *  - Towers target only valid enemies (crossedBridge OR touching)
-   *  - Towers shoot projectiles; projectiles damage targets on hit
-   *  - Debug markers hidden by default; toggleable via UI
-   *
-   *  Author: assistant (merged & expanded per request)
-   **************************************************************************/
+  /**********************************************************************
+   * MEGA 3D Full — single-file
+   * Features:
+   * - Full Three.js scene (sky bg, lights, shadows, orbit controls)
+   * - Arena: ground, river, two bridges
+   * - Bridge-aligned waypoints (post-bridge on bridges)
+   * - Troop pathing via waypoints
+   * - Troop vs troop melee, troop vs tower combat
+   * - Towers target and fire projectiles
+   * - Debug markers (toggleable)
+   * - Texture loader for towers (fallback to color material)
+   * - Single drop-in file ready for GitHub
+   **********************************************************************/
 
   // -------------------- Utilities --------------------
-  const logEl = document.getElementById('log');
+  const UI = {
+    logEl: document.getElementById('log'),
+    dbgToggle: document.getElementById('debugToggle'),
+    deckEl: document.getElementById('deck'),
+    elixirFill: document.getElementById('elixirFill'),
+    elixirText: document.getElementById('elixirText')
+  };
+
   function log(...args){
-    const s = new Date().toLocaleTimeString() + '  ' + args.map(a=> typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-    logEl.innerText = s + '\\n' + logEl.innerText;
-    // limit buffer
-    if(logEl.innerText.length > 30000) logEl.innerText = logEl.innerText.substr(0,30000);
+    const txt = new Date().toLocaleTimeString() + '  ' + args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+    UI.logEl.innerText = txt + '\\n' + UI.logEl.innerText;
+    if(UI.logEl.innerText.length > 30000) UI.logEl.innerText = UI.logEl.innerText.substr(0,30000);
     console.log(...args);
   }
-  function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
   function vdist(a,b){ const dx = a.x - b.x; const dz = a.z - b.z; return Math.sqrt(dx*dx + dz*dz); }
-  function randRange(a,b){ return a + Math.random() * (b-a); }
+  function randRange(a,b){ return a + Math.random()*(b-a); }
   function now(){ return performance.now() / 1000; }
 
-  // -------------------- Renderer / Camera / Controls --------------------
+  // -------------------- Renderer & Camera --------------------
   const holder = document.getElementById('canvasHolder');
   const WIDTH = Math.max(1100, window.innerWidth - 420);
   const HEIGHT = window.innerHeight;
   const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x86c0d8); // subtle sky
   scene.fog = new THREE.FogExp2(0x071019, 0.0022);
 
   const camera = new THREE.PerspectiveCamera(50, WIDTH/HEIGHT, 0.1, 2000);
@@ -111,7 +121,6 @@
   controls.maxDistance = 520;
   controls.update();
 
-  // Resize handling
   window.addEventListener('resize', () => {
     const w = Math.max(900, window.innerWidth - 440);
     const h = window.innerHeight;
@@ -120,9 +129,10 @@
   });
 
   // -------------------- Lights --------------------
-  const hemi = new THREE.HemisphereLight(0xbbdffb, 0x080820, 0.55);
+  const hemi = new THREE.HemisphereLight(0xbbdffb, 0x080820, 0.6);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+
+  const sun = new THREE.DirectionalLight(0xffffff, 0.95);
   sun.position.set(120, 260, 90);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -134,105 +144,116 @@
   sun.shadow.camera.bottom = -400;
   scene.add(sun);
 
-  // -------------------- Arena Geometry --------------------
+  // small ambient fill so materials don't go black
+  const ambient = new THREE.AmbientLight(0xffffff, 0.12);
+  scene.add(ambient);
+
+  // -------------------- Arena geometry --------------------
   const ARENA_W = 300, ARENA_H = 420, RIVER_H = 54, BRIDGE_W = 60;
-  const arenaGroup = new THREE.Group(); scene.add(arenaGroup);
+  const arena = new THREE.Group(); scene.add(arena);
 
   // ground
-  const groundMat = new THREE.MeshStandardMaterial({ color: 0x123b27, roughness: 0.9 });
+  const groundMat = new THREE.MeshStandardMaterial({ color: 0x163f2e, roughness: 0.95 });
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_W, ARENA_H), groundMat);
   ground.rotation.x = -Math.PI/2;
   ground.receiveShadow = true;
-  arenaGroup.add(ground);
+  arena.add(ground);
 
   // river
-  const riverMat = new THREE.MeshStandardMaterial({ color: 0x1e6b88, metalness: 0.07, roughness: 0.6 });
+  const riverMat = new THREE.MeshStandardMaterial({ color: 0x1e6b88, metalness: 0.08, roughness: 0.5 });
   const river = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_W, RIVER_H), riverMat);
-  river.rotation.x = -Math.PI/2; river.position.y = 0.02;
-  river.receiveShadow = true; arenaGroup.add(river);
+  river.rotation.x = -Math.PI/2;
+  river.position.y = 0.02; // slightly above ground for z-fighting safety
+  river.receiveShadow = true;
+  arena.add(river);
 
   // bridges
   const bridgeGeom = new THREE.BoxGeometry(BRIDGE_W, 2, 120);
-  const bridgeMat = new THREE.MeshStandardMaterial({ color: 0x7d5a34 });
-  const bridgeL = new THREE.Mesh(bridgeGeom, bridgeMat); bridgeL.position.set(-64, 0.5, 0); bridgeL.receiveShadow=true; bridgeL.castShadow=true; arenaGroup.add(bridgeL);
-  const bridgeR = new THREE.Mesh(bridgeGeom, bridgeMat); bridgeR.position.set(64, 0.5, 0); bridgeR.receiveShadow=true; bridgeR.castShadow=true; arenaGroup.add(bridgeR);
+  const bridgeMat = new THREE.MeshStandardMaterial({ color: 0x7d5a34, roughness: 0.6 });
+  const bridgeL = new THREE.Mesh(bridgeGeom, bridgeMat); bridgeL.position.set(-64, 0.5, 0); bridgeL.receiveShadow = true; bridgeL.castShadow = true; arena.add(bridgeL);
+  const bridgeR = new THREE.Mesh(bridgeGeom, bridgeMat); bridgeR.position.set(64, 0.5, 0); bridgeR.receiveShadow = true; bridgeR.castShadow = true; arena.add(bridgeR);
 
-  // arena edge decorative walls (for depth)
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x0a2520 });
-  const perimeter = new THREE.Mesh(new THREE.BoxGeometry(ARENA_W+24, 8, 20), wallMat); perimeter.position.set(0, 4, ARENA_H/2 + 10); perimeter.receiveShadow=true; scene.add(perimeter);
-  const perimeter2 = perimeter.clone(); perimeter2.position.set(0, 4, -ARENA_H/2 - 10); scene.add(perimeter2);
+  // decorative edges
+  const edgeMat = new THREE.MeshStandardMaterial({ color: 0x0c2520, roughness: 0.95 });
+  const edge1 = new THREE.Mesh(new THREE.BoxGeometry(ARENA_W + 24, 8, 20), edgeMat); edge1.position.set(0,4,ARENA_H/2 + 12); scene.add(edge1);
+  const edge2 = edge1.clone(); edge2.position.set(0,4,-ARENA_H/2 - 12); scene.add(edge2);
 
-  // -------------------- Waypoints (bridge-aligned: pre/post) --------------------
-  // structure: [spawnAnchor, preBridge, postBridge(on bridge entrance), enemyApproach, enemySpawn]
+  // -------------------- Waypoints (aligned to bridges) --------------------
+  // [spawnAnchor, preBridge, postBridge(on bridge), enemyApproach, enemySpawn]
   const Lanes = {
-    left: [
-      new THREE.Vector3(-64, 0, ARENA_H/2 - 46),
-      new THREE.Vector3(-64, 0, 52),          // pre-bridge
-      new THREE.Vector3(-64, 0, 0),           // post-bridge == bridge entrance (aligned to bridge)
-      new THREE.Vector3(-64, 0, -52),
-      new THREE.Vector3(-64, 0, -ARENA_H/2 + 46)
-    ],
-    right: [
-      new THREE.Vector3(64, 0, ARENA_H/2 - 46),
-      new THREE.Vector3(64, 0, 52),
-      new THREE.Vector3(64, 0, 0),
-      new THREE.Vector3(64, 0, -52),
-      new THREE.Vector3(64, 0, -ARENA_H/2 + 46)
-    ]
+    left:  [ new THREE.Vector3(-64,0,ARENA_H/2 - 46), new THREE.Vector3(-64,0,52), new THREE.Vector3(-64,0,0), new THREE.Vector3(-64,0,-52), new THREE.Vector3(-64,0,-ARENA_H/2 + 46) ],
+    right: [ new THREE.Vector3(64,0,ARENA_H/2 - 46),  new THREE.Vector3(64,0,52),  new THREE.Vector3(64,0,0),  new THREE.Vector3(64,0,-52),  new THREE.Vector3(64,0,-ARENA_H/2 + 46) ]
   };
 
-  // Debug markers container (hidden by default)
-  const debugMarkers = new THREE.Group();
-  debugMarkers.visible = false;
-  scene.add(debugMarkers);
+  // debug markers (hidden by default)
+  const debugGroup = new THREE.Group(); debugGroup.visible = false; scene.add(debugGroup);
 
-  // draw debug markers if enabled
-  function rebuildDebugMarkers(){
-    debugMarkers.clear();
+  function rebuildDebug(){
+    debugGroup.clear();
     const preMat = new THREE.MeshBasicMaterial({ color: 0x2ea0ff });
     const postMat = new THREE.MeshBasicMaterial({ color: 0xff4c4c });
-    const preG = new THREE.SphereGeometry(3, 12, 12);
-    const postG = new THREE.SphereGeometry(3.4, 12, 12);
+    const preG = new THREE.SphereGeometry(3.2, 12, 12);
+    const postG = new THREE.SphereGeometry(3.6, 12, 12);
     for(const side of ['left','right']){
       const lane = Lanes[side];
-      const pre = new THREE.Mesh(preG, preMat); pre.position.copy(lane[1]); pre.position.y = 4; debugMarkers.add(pre);
-      const post = new THREE.Mesh(postG, postMat); post.position.copy(lane[2]); post.position.y = 4; debugMarkers.add(post);
-      // also show full path spheres
+      const pre = new THREE.Mesh(preG, preMat); pre.position.copy(lane[1]); pre.position.y = 4; debugGroup.add(pre);
+      const post = new THREE.Mesh(postG, postMat); post.position.copy(lane[2]); post.position.y = 4; debugGroup.add(post);
       for(let i=0;i<lane.length;i++){
-        const g = new THREE.Mesh(new THREE.SphereGeometry(1.6,8,8), new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.06}));
-        g.position.copy(lane[i]); g.position.y = 1.8; debugMarkers.add(g);
+        const s = new THREE.Mesh(new THREE.SphereGeometry(1.6,8,8), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent:true, opacity:0.06 }));
+        s.position.copy(lane[i]); s.position.y = 2; debugGroup.add(s);
       }
     }
   }
-  rebuildDebugMarkers();
+  rebuildDebug();
 
   // -------------------- World Pools --------------------
   const World = { troops: [], towers: [], projectiles: [], effects: [] };
 
-  // -------------------- Visual Helpers --------------------
-  function createHealthBar(width=26){
-    const group = new THREE.Group();
+  // -------------------- Material & Texture Loader for towers --------------------
+  const texLoader = new THREE.TextureLoader();
+  // default placeholder — will be replaced if texture loads
+  let towerDiffuse = null, towerNormal = null;
+  // attempt to load textures from standard path; failure is okay (fallback)
+  texLoader.load('textures/tower_diffuse.png',
+    (tex) => { towerDiffuse = tex; towerDiffuse.encoding = THREE.sRGBEncoding; log('Loaded tower_diffuse.png'); },
+    undefined,
+    () => { log('No tower_diffuse.png found — using fallback color'); }
+  );
+  texLoader.load('textures/tower_normal.png',
+    (tex) => { towerNormal = tex; log('Loaded tower_normal.png'); },
+    undefined,
+    () => { /* ok to miss normal map */ }
+  );
+
+  function towerMaterial(team){
+    // if textures available, use them; otherwise color fallback
+    if(towerDiffuse){
+      return new THREE.MeshStandardMaterial({ map: towerDiffuse, normalMap: towerNormal || null, metalness: 0.05, roughness: 0.6 });
+    } else {
+      const col = (team === 'player') ? 0x2f7a47 : 0x7a2f2f;
+      return new THREE.MeshStandardMaterial({ color: col, metalness: 0.05, roughness: 0.6 });
+    }
+  }
+
+  // -------------------- Helpers: health bars, meshes --------------------
+  function createHealthBar(width = 28){
+    const g = new THREE.Group();
     const back = new THREE.Mesh(new THREE.PlaneGeometry(width, 3), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.6 }));
     const front = new THREE.Mesh(new THREE.PlaneGeometry(width-2, 2.2), new THREE.MeshBasicMaterial({ color: 0x33ff88 }));
-    front.name = 'hpFront';
-    front.position.z = 0.01;
-    back.add(front);
-    group.add(back);
-    group.position.y = 36;
-    return group;
+    front.name = 'hpFront'; front.position.z = 0.01; back.add(front); g.add(back); g.position.y = 36; return g;
   }
 
-  function towerMesh(kind, team){
-    const col = (team==='player') ? 0x2f7a47 : 0x7a2f2f;
-    const geo = new THREE.CylinderGeometry(14, 14, 34, 14);
-    const mat = new THREE.MeshStandardMaterial({ color: col, metalness: 0.05, roughness: 0.6 });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.castShadow = true; mesh.receiveShadow = true;
-    return mesh;
+  function makeTowerMesh(kind, team){
+    // tower geometry: cylinder + small roof
+    const baseGeo = new THREE.CylinderGeometry(14, 14, 34, 14);
+    const mat = towerMaterial(team);
+    const base = new THREE.Mesh(baseGeo, mat);
+    base.castShadow = true; base.receiveShadow = true;
+    return base;
   }
 
-  function troopMesh(team, size){
-    const col = (team==='player') ? 0xffe0b0 : 0xffb0b0;
+  function makeTroopMesh(team, size){
+    const col = (team === 'player') ? 0xffe0b0 : 0xffb0b0;
     const geo = new THREE.BoxGeometry(size, size, size);
     const mat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.6 });
     const mesh = new THREE.Mesh(geo, mat);
@@ -240,7 +261,7 @@
     return mesh;
   }
 
-  // -------------------- Tower Class --------------------
+  // -------------------- Tower class --------------------
   function Tower(opts){
     this.team = opts.team;
     this.kind = opts.kind; // 'princess' or 'king'
@@ -249,12 +270,12 @@
     this.hp = this.baseHP;
     this.baseDamage = (this.kind === 'king') ? 110 : 55;
     this.baseRange = (this.kind === 'king') ? 150 : 120;
-    this.baseFireRate = 1.0; // attacks per second
+    this.baseFireRate = 1.0;
     this.damage = this.baseDamage;
     this.range = this.baseRange;
     this.fireRate = this.baseFireRate;
     this.cooldown = 0;
-    this.mesh = towerMesh(this.kind, this.team);
+    this.mesh = makeTowerMesh(this.kind, this.team);
     this.mesh.position.set(this.pos.x, 18, this.pos.z);
     this.hpBar = createHealthBar(28);
     this.hpBar.position.set(this.pos.x, 46, this.pos.z);
@@ -271,29 +292,27 @@
       front.position.x = -( (28-2) * (1 - pct) ) / 2;
     }
     if(this.hp <= 0){
-      // visually deactivated
-      if(this.mesh.material) this.mesh.material.color.setHex(0x333333);
+      if(this.mesh.material) this.mesh.material.color && this.mesh.material.color.setHex(0x333333);
     }
   };
 
-  // Tower targeting: only target troops that are appropriate:
-  // - same side of arena (z sign), and either troop.crossedBridge OR touching tower
   Tower.prototype.canTarget = function(candidate){
     if(!candidate || candidate.hp <= 0) return false;
+    // must be on same side
     if(Math.sign(this.pos.z) !== Math.sign(candidate.mesh.position.z)) return false;
     const d = vdist(this.pos, candidate.mesh.position);
-    const touchThreshold = (candidate.size || 8) + 14;
-    if(!candidate.crossedBridge && d > this.range && d > touchThreshold) return false;
-    return d <= this.range || d <= touchThreshold;
+    const touchThresh = (candidate.size || 8) + 14;
+    if(!candidate.crossedBridge && d > this.range && d > touchThresh) return false;
+    return d <= this.range || d <= touchThresh;
   };
 
   Tower.prototype.tryFire = function(dt){
     if(this.hp <= 0) return;
     if(this.cooldown > 0){ this.cooldown -= dt; return; }
-    // king wake rule: simplified - if any princess alive, king sleeps
+    // king wake rule: kings sleep while princesses alive on same team
     if(this.kind === 'king'){
-      const teamPrincesses = World.towers.filter(t => t.team === this.team && t.kind === 'princess');
-      const anyAlive = teamPrincesses.some(p => p.hp > 0);
+      const princesses = World.towers.filter(t => t.team === this.team && t.kind === 'princess');
+      const anyAlive = princesses.some(p => p.hp > 0);
       if(anyAlive) return;
     }
     // find nearest valid troop
@@ -313,13 +332,12 @@
 
   // -------------------- Projectiles --------------------
   function spawnProjectile(fromVec, targetUnit, power, team){
-    const geo = new THREE.SphereGeometry(2.4, 8, 8);
+    const geo = new THREE.SphereGeometry(2.6, 8, 8);
     const mat = new THREE.MeshBasicMaterial({ color: team === 'player' ? 0x99ffcc : 0xffc0c0 });
     const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.copy(fromVec);
-    mesh.position.y = 20;
+    mesh.position.copy(fromVec); mesh.position.y = 20;
     scene.add(mesh);
-    World.projectiles.push({ mesh, target: targetUnit, power, speed: 300, dead: false, team });
+    World.projectiles.push({ mesh, target: targetUnit, power, speed: 320, dead: false, team });
   }
 
   function updateProjectiles(dt){
@@ -327,37 +345,31 @@
       if(p.dead) continue;
       if(!p.target || p.target.hp <= 0){ p.dead = true; scene.remove(p.mesh); continue; }
       const tpos = p.target.mesh ? p.target.mesh.position : p.target.pos;
-      const dx = tpos.x - p.mesh.position.x;
-      const dz = tpos.z - p.mesh.position.z;
+      const dx = tpos.x - p.mesh.position.x, dz = tpos.z - p.mesh.position.z;
       const d = Math.sqrt(dx*dx + dz*dz);
-      if(d < 3.8){
+      if(d < 4.2){
         // hit
         p.target.hp = Math.max(0, p.target.hp - p.power);
         p.dead = true;
-        // tiny impact effect
         spawnImpact(p.mesh.position.clone(), p.team);
         scene.remove(p.mesh);
       } else {
         const nx = dx / d, nz = dz / d;
         const move = p.speed * dt;
-        p.mesh.position.x += nx * move; p.mesh.position.z += nz * move;
+        p.mesh.position.x += nx * move;
+        p.mesh.position.z += nz * move;
       }
     }
     for(let i = World.projectiles.length - 1; i >= 0; --i) if(World.projectiles[i].dead) World.projectiles.splice(i,1);
   }
 
-  // simple impact effect
+  // small impact effect (plane that fades)
   function spawnImpact(pos, team){
-    // small flash (single-frame)
-    const geo = new THREE.PlaneGeometry(6,6);
-    const mat = new THREE.MeshBasicMaterial({ color: team === 'player' ? 0x99ffcc : 0xffc0c0, transparent:true, opacity:0.9, side: THREE.DoubleSide });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.rotation.x = -Math.PI/2;
-    mesh.position.copy(pos); mesh.position.y = 6;
+    const geo = new THREE.PlaneGeometry(8,8);
+    const mat = new THREE.MeshBasicMaterial({ color: team === 'player' ? 0x99ffcc : 0xffc0c0, transparent:true, opacity:0.9, side:THREE.DoubleSide });
+    const mesh = new THREE.Mesh(geo, mat); mesh.rotation.x = -Math.PI/2; mesh.position.copy(pos); mesh.position.y = 6;
     scene.add(mesh);
-    // fade out over 250ms
-    const effect = { mesh, life: 0.25 };
-    World.effects.push(effect);
+    World.effects.push({ mesh, life: 0.25 });
   }
 
   function updateEffects(dt){
@@ -369,21 +381,21 @@
     for(let i = World.effects.length - 1; i >= 0; --i) if(World.effects[i].life <= 0) World.effects.splice(i,1);
   }
 
-  // -------------------- Troop Class --------------------
+  // -------------------- Troop class --------------------
   function Troop(opts){
     this.team = opts.team;
     this.name = opts.template.name || 'Troop';
     this.maxHp = opts.template.hp || 200;
     this.hp = this.maxHp;
-    this.dmg = opts.template.dmg || 20;
-    this.speed = (opts.template.speed || 45) / 60; // world units per second scaled
+    this.dmg = opts.template.dmg || 24;
+    this.speed = (opts.template.speed || 45) / 60;
     this.range = (opts.template.range || 10) / 60;
     this.projectile = !!opts.template.projectile;
     this.size = opts.template.size || 8;
     this.path = opts.path.map(p => p.clone());
-    this.waypointIndex = (this.team === 'player') ? 1 : (this.path.length - 2); // start at pre-bridge for player
+    this.waypointIndex = (this.team === 'player') ? 1 : (this.path.length - 2);
     this.crossedBridge = false;
-    this.mesh = troopMesh(this.team, this.size);
+    this.mesh = makeTroopMesh(this.team, this.size);
     this.mesh.position.copy(opts.pos);
     this.mesh.position.y = this.size/2;
     const hp = createHealthBar(Math.max(18, this.size*2.2));
@@ -400,16 +412,14 @@
   Troop.prototype.updateVisual = function(){
     const front = this.mesh.children[0].getObjectByName('hpFront');
     if(front){
+      const width = front.geometry.parameters.width || 20;
       const pct = clamp(this.hp / this.maxHp, 0, 1);
       front.scale.x = pct;
-      front.position.x = -( (front.geometry.parameters.width) * (1 - pct) ) / 2;
+      front.position.x = -( width * (1 - pct) ) / 2;
     }
-    // color/opacity tweak when low HP
-    if(this.hp <= 0 && this.mesh.material) this.mesh.material.opacity = 0.4;
   };
 
   Troop.prototype.findTarget = function(){
-    // prefer nearby enemy troops, then towers
     let best = null, bd = Infinity;
     for(const u of World.troops){
       if(u.team === this.team || u.hp <= 0) continue;
@@ -430,32 +440,28 @@
     if(this.target && this.target.hp <= 0){ this.target = null; this.state = 'moving'; }
     if(!this.target) this.target = this.findTarget();
 
-    // update crossedBridge flag (robust world-position check vs post-bridge z)
+    // update crossedBridge by comparing to post-bridge z
     if(this.path && this.path[2]){
       const postZ = this.path[2].z;
-      if(this.team === 'player'){
-        if(this.mesh.position.z <= postZ + 1) this.crossedBridge = true;
-      } else {
-        if(this.mesh.position.z >= postZ - 1) this.crossedBridge = true;
-      }
+      if(this.team === 'player'){ if(this.mesh.position.z <= postZ + 1) this.crossedBridge = true; }
+      else { if(this.mesh.position.z >= postZ - 1) this.crossedBridge = true; }
     }
 
-    // 1) melee vs troop
+    // melee vs troops
     const enemies = World.troops.filter(t => t.team !== this.team && t.hp > 0);
     for(const e of enemies){
       const d = vdist(this.mesh.position, e.mesh.position);
       if(d <= (this.size + e.size) / 2 + 1.2){
         if(this.attackCooldown <= 0){
-          this.attackCooldown = 1.0; // basic attack rate
+          this.attackCooldown = 1.0;
           e.hp = Math.max(0, e.hp - this.dmg);
-          // impact
           spawnImpact(this.mesh.position.clone(), this.team);
         }
-        return; // stop moving this frame while attacking
+        return;
       }
     }
 
-    // 2) attack towers if touching / within close distance
+    // attack towers if touching
     for(const tw of World.towers){
       if(tw.team === this.team || tw.hp <= 0) continue;
       const d = vdist(this.mesh.position, tw.pos);
@@ -469,10 +475,9 @@
       }
     }
 
-    // 3) movement along path / to target
+    // movement
     if(this.state === 'moving'){
       if(this.waypointIndex >= this.path.length){
-        // no more waypoints, move to target if present
         if(this.target) this.moveToward(this.target.mesh ? this.target.mesh.position : this.target.pos, dt);
       } else {
         const wp = this.path[this.waypointIndex];
@@ -497,7 +502,7 @@
     this.mesh.position.y = this.size / 2;
   };
 
-  // -------------------- Game State & AI --------------------
+  // -------------------- Game state / spawn / AI --------------------
   const Game = {
     elixir: 4, elixirMax: 10, elixirRate: 1, paused: false,
     placementZone: { xMin: -92, xMax: 92, zMin: ARENA_H/2 - 160, zMax: ARENA_H/2 - 30 },
@@ -506,46 +511,42 @@
       { name: 'Archer', hp: 200, dmg: 28, speed: 56, range: 120, projectile: true, cost: 3, size: 6 },
       { name: 'Giant', hp: 1100, dmg: 62, speed: 32, range: 12, projectile: false, cost: 5, size: 14 },
       { name: 'Hog', hp: 320, dmg: 60, speed: 115, range: 10, projectile: false, cost: 4, size: 10 },
-      { name: 'Minis', hp: 140, dmg: 18, speed: 85, range: 8, projectile: false, cost: 2, size: 6 },
+      { name: 'Minis', hp: 140, dmg: 18, speed: 85, range: 8, projectile: false, cost: 2, size: 6 }
     ],
     selectedCard: null,
     ai: { elixir: 4, spawnIntervalMin: 1.2, spawnIntervalMax: 3.0, lastSpawnAttempt: 0 }
   };
 
   function spawnAllTowers(){
-    // clear previous
-    for(const t of World.towers){ try{ scene.remove(t.mesh); scene.remove(t.hpBar);}catch(e){} }
+    // remove old tower meshes
+    for(const t of World.towers){ try{ scene.remove(t.mesh); scene.remove(t.hpBar); }catch(_){} }
     World.towers.length = 0;
-    // player side (bottom / positive z)
-    const pLeft = new Tower({ team: 'player', kind: 'princess', pos: new THREE.Vector3(-64, 0, ARENA_H/2 - 92) });
-    const pRight = new Tower({ team: 'player', kind: 'princess', pos: new THREE.Vector3(64, 0, ARENA_H/2 - 92) });
-    const pKing = new Tower({ team: 'player', kind: 'king', pos: new THREE.Vector3(0, 0, ARENA_H/2 - 44) });
-    // enemy side (top / negative z)
-    const eLeft = new Tower({ team: 'enemy', kind: 'princess', pos: new THREE.Vector3(-64, 0, -ARENA_H/2 + 92) });
-    const eRight = new Tower({ team: 'enemy', kind: 'princess', pos: new THREE.Vector3(64, 0, -ARENA_H/2 + 92) });
-    const eKing = new Tower({ team: 'enemy', kind: 'king', pos: new THREE.Vector3(0, 0, -ARENA_H/2 + 44) });
-    World.towers.push(pLeft, pRight, pKing, eLeft, eRight, eKing);
+    const pL = new Tower({ team: 'player', kind: 'princess', pos: new THREE.Vector3(-64, 0, ARENA_H/2 - 92) });
+    const pR = new Tower({ team: 'player', kind: 'princess', pos: new THREE.Vector3(64, 0, ARENA_H/2 - 92) });
+    const pK = new Tower({ team: 'player', kind: 'king', pos: new THREE.Vector3(0, 0, ARENA_H/2 - 44) });
+    const eL = new Tower({ team: 'enemy', kind: 'princess', pos: new THREE.Vector3(-64, 0, -ARENA_H/2 + 92) });
+    const eR = new Tower({ team: 'enemy', kind: 'princess', pos: new THREE.Vector3(64, 0, -ARENA_H/2 + 92) });
+    const eK = new Tower({ team: 'enemy', kind: 'king', pos: new THREE.Vector3(0, 0, -ARENA_H/2 + 44) });
+    World.towers.push(pL, pR, pK, eL, eR, eK);
     for(const t of World.towers) t.updateVisual();
   }
 
   function spawnTroopFromCard(card, worldPos){
-    // check placement zone
     if(worldPos.z < Game.placementZone.zMin || worldPos.z > Game.placementZone.zMax ||
        worldPos.x < Game.placementZone.xMin || worldPos.x > Game.placementZone.xMax){
-      log('Placement outside allowed area'); return;
+      log('Placement outside allowed area');
+      return;
     }
     if(Game.elixir < card.cost){ log('Not enough elixir'); return; }
     Game.elixir -= card.cost; updateElixirUI();
     const laneName = worldPos.x < 0 ? 'left' : 'right';
     const lane = Lanes[laneName];
     const spawnPos = worldPos.clone(); spawnPos.y = 0;
-    // snap spawn z into spawn band to avoid placing inside river
     spawnPos.z = clamp(spawnPos.z, Game.placementZone.zMin, Game.placementZone.zMax);
-    const tpl = { ...card }; // copy
+    const tpl = { ...card };
     const t = new Troop({ team: 'player', template: tpl, pos: spawnPos, path: lane });
     t.name = tpl.name;
-    t.maxHp = tpl.hp; t.hp = tpl.hp; t.dmg = tpl.dmg;
-    t.speed = tpl.speed; t.range = tpl.range; t.projectile = !!tpl.projectile;
+    t.maxHp = tpl.hp; t.hp = tpl.hp; t.dmg = tpl.dmg; t.speed = tpl.speed; t.range = tpl.range; t.projectile = !!tpl.projectile;
     log('Player spawned', t.name, 'at', Math.round(spawnPos.x), Math.round(spawnPos.z));
   }
 
@@ -571,14 +572,12 @@
   function aiSpawnTroop(card, worldPos, path){
     const spawnPos = worldPos.clone(); spawnPos.y = 0;
     const t = new Troop({ team: 'enemy', template: card, pos: spawnPos, path: path });
-    t.name = card.name;
-    t.maxHp = card.hp; t.hp = card.hp; t.dmg = card.dmg; t.speed = card.speed; t.range = card.range; t.projectile = !!card.projectile;
+    t.name = card.name; t.maxHp = card.hp; t.hp = card.hp; t.dmg = card.dmg; t.speed = card.speed; t.range = card.range; t.projectile = !!card.projectile;
   }
 
-  // -------------------- Input -> World raycast --------------------
-  const raycaster = new THREE.Raycaster();
-  const mouse = new THREE.Vector2();
-  function screenToWorld(x, y){
+  // -------------------- Input / screen->world --------------------
+  const raycaster = new THREE.Raycaster(); const mouse = new THREE.Vector2();
+  function screenToWorld(x,y){
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((x - rect.left) / rect.width) * 2 - 1;
     mouse.y = - ((y - rect.top) / rect.height) * 2 + 1;
@@ -597,52 +596,38 @@
   });
 
   // -------------------- Deck UI --------------------
-  const deckEl = document.getElementById('deck');
   function buildDeckUI(){
-    deckEl.innerHTML = '';
+    UI.deckEl = document.getElementById('deck');
+    UI.deckEl.innerHTML = '';
     for(const tpl of Game.deckTemplates){
       const d = document.createElement('div');
       d.className = 'card';
       d.innerHTML = `<div style="font-weight:700">${tpl.name}</div><div class="muted">${tpl.cost} elixir</div>`;
-      d.addEventListener('click', () => {
-        if(Game.elixir >= tpl.cost){ Game.selectedCard = tpl; highlightSelected(d); }
-        else log('Not enough elixir');
-      });
-      deckEl.appendChild(d);
+      d.addEventListener('click', () => { if(Game.elixir >= tpl.cost){ Game.selectedCard = tpl; highlightSelected(d); } else log('Not enough elixir'); });
+      UI.deckEl.appendChild(d);
     }
   }
   function highlightSelected(node){
-    Array.from(deckEl.children).forEach(c => c.style.boxShadow = '');
+    if(!UI.deckEl) return;
+    Array.from(UI.deckEl.children).forEach(c => c.style.boxShadow = '');
     if(node) node.style.boxShadow = '0 0 0 4px rgba(50,200,255,0.12)';
   }
-  function updateElixirUI(){
-    const pct = Math.round((Game.elixir / Game.elixirMax) * 100);
-    document.getElementById('elixirFill').style.width = pct + '%';
-    document.getElementById('elixirText').innerText = 'Elixir: ' + Math.floor(Game.elixir) + ' / ' + Game.elixirMax;
-    Array.from(deckEl.children).forEach((c,i) => {
-      const tpl = Game.deckTemplates[i];
-      if(Game.elixir < tpl.cost) c.classList.add('disabled'); else c.classList.remove('disabled');
-    });
-  }
+  function updateElixirUI(){ const pct = Math.round((Game.elixir/Game.elixirMax)*100); document.getElementById('elixirFill').style.width = pct + '%'; document.getElementById('elixirText').innerText = 'Elixir: ' + Math.floor(Game.elixir) + ' / ' + Game.elixirMax; Array.from(UI.deckEl.children).forEach((c,i) => { const tpl = Game.deckTemplates[i]; if(Game.elixir < tpl.cost) c.classList.add('disabled'); else c.classList.remove('disabled'); }); }
 
-  // -------------------- Cleanup helpers --------------------
+  // -------------------- Cleanup --------------------
   function cleanupDead(){
     for(let i = World.troops.length - 1; i >= 0; --i){
       if(World.troops[i].hp <= 0){
-        try{ scene.remove(World.troops[i].mesh); }catch(e){}
-        World.troops.splice(i,1);
+        try{ scene.remove(World.troops[i].mesh); }catch(e){} World.troops.splice(i,1);
       }
     }
     for(let i = World.projectiles.length - 1; i >= 0; --i){
-      if(World.projectiles[i].dead){
-        try{ scene.remove(World.projectiles[i].mesh); }catch(e){}
-        World.projectiles.splice(i,1);
-      }
+      if(World.projectiles[i].dead){ try{ scene.remove(World.projectiles[i].mesh); }catch(e){} World.projectiles.splice(i,1); }
     }
-    // effects cleanup handled in updateEffects
+    // effects cleaned separately
   }
 
-  // -------------------- Main Loop --------------------
+  // -------------------- Main loop --------------------
   let last = now();
   function animate(){
     requestAnimationFrame(animate);
@@ -653,18 +638,18 @@
       Game.elixir = clamp(Game.elixir + Game.elixirRate * dt, 0, Game.elixirMax);
       updateElixirUI();
       aiTick(dt);
-      // towers fire
+      // towers
       for(const tw of World.towers) tw.tryFire(dt);
-      // projectiles update
+      // projectiles
       updateProjectiles(dt);
-      // troops update
+      // troops
       for(const u of World.troops) u.update(dt);
-      // update visuals & cleanup
+      // visuals & effects
       for(const t of World.towers) t.updateVisual();
       for(const u of World.troops) u.updateVisual();
       updateEffects(dt);
       cleanupDead();
-      // check kings
+      // victory
       const pKing = World.towers.find(t => t.team === 'player' && t.kind === 'king');
       const eKing = World.towers.find(t => t.team === 'enemy' && t.kind === 'king');
       if(pKing && pKing.hp <= 0){ Game.paused = true; log('Enemy wins!'); }
@@ -688,32 +673,28 @@
     log('World reset');
   });
 
-  // debug toggle
-  const debugToggle = document.getElementById('debugToggle');
-  debugToggle.addEventListener('change', (e) => { debugMarkers.visible = e.target.checked; });
+  UI.dbgToggle.addEventListener('change', (e) => { debugGroup.visible = e.target.checked; });
 
-  // -------------------- Initialization --------------------
+  // -------------------- Init helpers & demo --------------------
   Game.recomputePlacementZones = function(){ const m = 1.4; const baseW = 170, baseH = 140; const w = baseW * m, h = baseH * m; this.placementZone.xMin = -w/2; this.placementZone.xMax = w/2; this.placementZone.zMin = ARENA_H/2 - h - 10; this.placementZone.zMax = ARENA_H/2 - 30; };
 
-  // tiny helper: pre-add two default troops for visual reference (optional)
   function spawnDemoTroops(){
-    // spawn a couple of friendly + enemy units to test
-    const leftSpawn = Lanes.left[0].clone(); leftSpawn.x += -6; leftSpawn.z += -2; const t1 = new Troop({ team:'player', template: Game.deckTemplates[0], pos:leftSpawn, path:Lanes.left }); t1.name='DemoKnight';
-    const rightSpawn = Lanes.right[Lanes.right.length-1].clone(); rightSpawn.x += 6; rightSpawn.z += 2; const t2 = new Troop({ team:'enemy', template: Game.deckTemplates[1], pos:rightSpawn, path:Lanes.right }); t2.name='DemoArcher';
+    // optional demo
+    const s1 = Lanes.left[0].clone(); s1.x += -8; s1.z -= 4; const t1 = new Troop({ team:'player', template: Game.deckTemplates[0], pos: s1, path: Lanes.left }); t1.name='DemoKnight';
+    const s2 = Lanes.right[Lanes.right.length-1].clone(); s2.x += 8; s2.z += 4; const t2 = new Troop({ team:'enemy', template: Game.deckTemplates[1], pos: s2, path: Lanes.right }); t2.name='DemoArcher';
   }
 
-  // expose internals for debugging in console
-  window.ClashMega = { scene, camera, renderer, World, Game, Lanes, debugMarkers };
+  // expose debug object
+  window.ClashMega = { scene, camera, renderer, World, Game, Lanes, debugGroup };
 
-  // bootstrap
+  // -------------------- Bootstrap --------------------
   Game.recomputePlacementZones();
   spawnAllTowers();
   buildDeckUI();
   updateElixirUI();
-  // optional demo troops: uncomment if you want an immediate visual
-  // spawnDemoTroops();
+  // spawnDemoTroops(); // uncomment if you'd like initial units
   animate();
-  log('MEGA 3D loaded — full visuals + pathing + combat. Debug markers are off by default.');
+  log('MEGA 3D loaded — lights, arena, pathing, combat. Debug markers off. Drop textures into textures/ and they will be used.');
 
   </script>
 </body>
