@@ -53,7 +53,7 @@
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
     // === LIGHTS ===
-    const ambient = new THREE.AmbientLight(0xffffff, 1.0);
+    const ambient = new THREE.AmbientLight(0xffffff, 2.0);
     scene.add(ambient);
 
     const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
